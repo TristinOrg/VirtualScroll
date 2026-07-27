@@ -27,6 +27,16 @@ namespace TristinWen.VirtualScroll
         private readonly float[] mTree;
 
         /// <summary>
+        /// Tracks whether each item has obtained its real size.
+        /// </summary>
+        private readonly bool[] mResolved;
+
+        /// <summary>
+        /// Source queried lazily as items approach the viewport.
+        /// </summary>
+        private readonly IVirtualScrollDataSource mDataSource;
+
+        /// <summary>
         /// Uniform distance between adjacent items.
         /// </summary>
         private readonly float mSpacing;
@@ -36,16 +46,20 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         /// <param name="dataSource">Source used to resolve initial sizes.</param>
         /// <param name="spacing">Distance between adjacent items.</param>
-        public VariableSizeIndex(IVirtualScrollDataSource dataSource, float spacing)
+        /// <param name="estimatedSize">Initial size used for items that have not been measured.</param>
+        public VariableSizeIndex(IVirtualScrollDataSource dataSource, float spacing, float estimatedSize)
         {
             var count = Mathf.Max(0, dataSource.Count);
-            mSpacing = Mathf.Max(0f, spacing);
-            mSizes = new float[count];
-            mTree = new float[count + 1];
+            mDataSource = dataSource;
+            mSpacing    = Mathf.Max(0f, spacing);
+            mSizes      = new float[count];
+            mTree       = new float[count + 1];
+            mResolved   = new bool[count];
+            var validEstimatedSize = Mathf.Max(0.01f, estimatedSize);
 
             for (var i = 0; i < count; i++)
             {
-                mSizes[i] = Mathf.Max(0.01f, dataSource.GetItemSize(i));
+                mSizes[i]    = validEstimatedSize;
                 mTree[i + 1] += mSizes[i] + mSpacing;
                 var parent = (i + 1) + ((i + 1) & -(i + 1));
                 if (parent <= count)
@@ -71,6 +85,11 @@ namespace TristinWen.VirtualScroll
         public int CrossAxisCount => 1;
 
         /// <summary>
+        /// Gets the number of real-size updates applied to the index.
+        /// </summary>
+        public int Version { get; private set; }
+
+        /// <summary>
         /// Gets the offset at which an item starts.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -87,7 +106,7 @@ namespace TristinWen.VirtualScroll
         /// <returns>Item size without spacing.</returns>
         public float GetSize(int index)
         {
-            return index >= 0 && index < Count ? mSizes[index] : 0f;
+            return index >= 0 && index < Count ? ResolveSize(index) : 0f;
         }
 
         /// <summary>
@@ -147,8 +166,28 @@ namespace TristinWen.VirtualScroll
             }
 
             var validOverscan = Mathf.Max(0, overscan);
-            var first = Mathf.Max(0, FindIndex(startOffset) - validOverscan);
-            var last = Mathf.Min(Count - 1, FindIndex(endOffset) + validOverscan);
+            var first         = 0;
+            var last          = 0;
+            while (true)
+            {
+                first       = Mathf.Max(0, FindIndex(startOffset) - validOverscan);
+                last        = Mathf.Min(Count - 1, FindIndex(endOffset) + validOverscan);
+                var version = Version;
+                for (var index = first; index <= last; index++)
+                {
+                    ResolveSize(index);
+                }
+
+                var resolvedFirst = Mathf.Max(0, FindIndex(startOffset) - validOverscan);
+                var resolvedLast  = Mathf.Min(Count - 1, FindIndex(endOffset) + validOverscan);
+                if (version == Version || first == resolvedFirst && last == resolvedLast)
+                {
+                    first = resolvedFirst;
+                    last  = resolvedLast;
+                    break;
+                }
+            }
+
             for (var index = first; index <= last; index++)
             {
                 results.Add(index);
@@ -167,18 +206,43 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var validSize = Mathf.Max(0.01f, size);
-            var delta = validSize - mSizes[index];
+            var validSize    = Mathf.Max(0.01f, size);
+            var delta        = validSize - mSizes[index];
+            var wasResolved  = mResolved[index];
+            mResolved[index] = true;
             if (Mathf.Approximately(delta, 0f))
             {
+                if (!wasResolved)
+                {
+                    Version++;
+                }
+
                 return;
             }
 
             mSizes[index] = validSize;
+            Version++;
             for (var treeIndex = index + 1; treeIndex <= Count; treeIndex += treeIndex & -treeIndex)
             {
                 mTree[treeIndex] += delta;
             }
+        }
+
+        /// <summary>
+        /// Resolves an item's real size once.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Resolved main-axis size.</returns>
+        private float ResolveSize(int index)
+        {
+            if (mResolved[index])
+            {
+                return mSizes[index];
+            }
+
+            var size = Mathf.Max(0.01f, mDataSource.GetItemSize(index));
+            UpdateSize(index, size);
+            return mSizes[index];
         }
 
         /// <summary>

@@ -100,11 +100,13 @@ public sealed class MailListPresenter : MonoBehaviour, IVirtualScrollDataSource
 
 ## Variable-height content
 
-When item height is known from the model, return it from `GetItemSize`. This is the fastest path.
+Set `EstimatedMainAxisSize` to a representative item height or width. Variable layouts build their initial offset index from this estimate without calling `GetItemSize` for the entire data set. `GetItemSize(index)` is requested once when an item approaches the viewport, and the total content size is calibrated incrementally.
+
+`FixedMainAxisSize` means height for vertical scrolling and width for horizontal scrolling. The former `FixedItemSize` API remains as an obsolete source-compatible alias, and existing serialized values migrate automatically.
 
 When text or asynchronous content determines the final height:
 
-1. Return a stable estimated height from `GetItemSize`.
+1. Configure a stable `EstimatedMainAxisSize`.
 2. Bind and lay out the visible item.
 3. Measure its final height.
 4. Call `NotifyItemSizeChanged(index, measuredHeight)` only when the value actually changes.
@@ -169,7 +171,7 @@ With `UseLayoutGroupSettings` enabled (the default), `VirtualScrollView` capture
 - `HorizontalLayoutGroup`: horizontal direction, padding, spacing, and alignment.
 - `GridLayoutGroup`: direction, padding, spacing, cell size, constraint/count, alignment, start axis, and cross-axis start corner.
 
-For a fixed-size grid, leave `OverrideLayoutItemSize` disabled to use `GridLayoutGroup.cellSize`. Enable it to keep `FixedItemSize`; spacing, padding, lane count, alignment, and cross-axis cell size still come from the GridLayoutGroup.
+For a fixed-size grid, leave `OverrideLayoutItemSize` disabled to use `GridLayoutGroup.cellSize`. Enable it to keep `FixedMainAxisSize`; spacing, padding, lane count, alignment, and cross-axis cell size still come from the GridLayoutGroup.
 
 For variable-size items such as mail content, select `SizeMode.Variable`. `GetItemSize(index)` controls each item's main-axis size while spacing and lane parameters continue to come from the captured LayoutGroup.
 

@@ -22,7 +22,10 @@ namespace TristinWen.VirtualScroll.Tests
         public void VariableIndexMapsOffsetsWithUniformSpacing()
         {
             var dataSource = new VirtualSizeIndexTestDataSource(new[] { 50f, 100f, 75f });
-            var index = new VariableSizeIndex(dataSource, 10f);
+            var index      = new VariableSizeIndex(dataSource, 10f, 80f);
+            var visible    = new System.Collections.Generic.List<int>();
+
+            index.CollectVisibleIndices(0f, 1000f, 0, visible);
 
             Assert.AreEqual(0f, index.GetOffset(0));
             Assert.AreEqual(60f, index.GetOffset(1));
@@ -40,7 +43,10 @@ namespace TristinWen.VirtualScroll.Tests
         public void VariableIndexUpdatesOneSize()
         {
             var dataSource = new VirtualSizeIndexTestDataSource(new[] { 50f, 100f, 75f });
-            var index = new VariableSizeIndex(dataSource, 10f);
+            var index      = new VariableSizeIndex(dataSource, 10f, 80f);
+            var visible    = new System.Collections.Generic.List<int>();
+
+            index.CollectVisibleIndices(0f, 1000f, 0, visible);
 
             index.UpdateSize(1, 140f);
 
@@ -48,6 +54,32 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.AreEqual(285f, index.TotalSize);
             Assert.AreEqual(1, index.FindIndex(180f));
             Assert.AreEqual(2, index.FindIndex(210f));
+        }
+
+        /// <summary>
+        /// Verifies a large data set only requests sizes near the viewport.
+        /// </summary>
+        [Test]
+        public void VariableIndexResolvesVisibleSizesLazily()
+        {
+            var sizes = new float[10000];
+            for (var index = 0; index < sizes.Length; index++)
+            {
+                sizes[index] = 50f;
+            }
+
+            var dataSource = new VirtualSizeIndexTestDataSource(sizes);
+            var sizeIndex  = new VariableSizeIndex(dataSource, 10f, 50f);
+            var visible    = new System.Collections.Generic.List<int>();
+
+            Assert.AreEqual(0, dataSource.SizeRequestCount);
+
+            sizeIndex.CollectVisibleIndices(0f, 300f, 1, visible);
+
+            Assert.LessOrEqual(dataSource.SizeRequestCount, 8);
+            var resolvedRequestCount = dataSource.SizeRequestCount;
+            sizeIndex.CollectVisibleIndices(0f, 300f, 1, visible);
+            Assert.AreEqual(resolvedRequestCount, dataSource.SizeRequestCount);
         }
     }
 }

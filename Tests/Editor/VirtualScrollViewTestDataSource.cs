@@ -21,6 +21,11 @@ namespace TristinWen.VirtualScroll.Tests
         public int Count { get; set; }
 
         /// <summary>
+        /// Gets the number of main-axis size requests.
+        /// </summary>
+        public int SizeRequestCount { get; private set; }
+
+        /// <summary>
         /// Gets the single test item type.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -37,6 +42,7 @@ namespace TristinWen.VirtualScroll.Tests
         /// <returns>Fifty pixels.</returns>
         public float GetItemSize(int index)
         {
+            SizeRequestCount++;
             return 50f;
         }
 

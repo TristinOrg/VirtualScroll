@@ -32,6 +32,16 @@ namespace TristinWen.VirtualScroll
         private readonly int[] mLanes;
 
         /// <summary>
+        /// Tracks whether each item has obtained its real size.
+        /// </summary>
+        private readonly bool[] mResolved;
+
+        /// <summary>
+        /// Source queried lazily as items approach the viewport.
+        /// </summary>
+        private readonly IVirtualScrollDataSource mDataSource;
+
+        /// <summary>
         /// Data indices ordered within each lane.
         /// </summary>
         private readonly List<int>[] mLaneIndices;
@@ -52,29 +62,32 @@ namespace TristinWen.VirtualScroll
         /// <param name="dataSource">Source used to resolve initial item sizes.</param>
         /// <param name="spacing">Uniform main-axis spacing.</param>
         /// <param name="crossAxisCount">Number of equal-width lanes.</param>
-        public MasonrySizeIndex(IVirtualScrollDataSource dataSource, float spacing, int crossAxisCount)
+        /// <param name="estimatedSize">Initial size used for items that have not been measured.</param>
+        public MasonrySizeIndex(IVirtualScrollDataSource dataSource, float spacing, int crossAxisCount, float estimatedSize)
         {
             var count = Mathf.Max(0, dataSource.Count);
-            mSpacing = Mathf.Max(0f, spacing);
-            mSizes = new float[count];
-            mOffsets = new float[count];
-            mLanes = new int[count];
+            mDataSource  = dataSource;
+            mSpacing     = Mathf.Max(0f, spacing);
+            mSizes       = new float[count];
+            mOffsets     = new float[count];
+            mLanes       = new int[count];
+            mResolved    = new bool[count];
             mLaneIndices = new List<int>[Mathf.Max(1, crossAxisCount)];
             for (var lane = 0; lane < mLaneIndices.Length; lane++)
             {
                 mLaneIndices[lane] = new List<int>();
             }
 
-            var laneSizes = new float[mLaneIndices.Length];
+            var laneSizes          = new float[mLaneIndices.Length];
+            var validEstimatedSize = Mathf.Max(0.01f, estimatedSize);
             for (var index = 0; index < count; index++)
             {
-                var lane = GetShortestLane(laneSizes);
-                var size = Mathf.Max(0.01f, dataSource.GetItemSize(index));
-                mSizes[index] = size;
-                mOffsets[index] = laneSizes[lane];
-                mLanes[index] = lane;
+                var lane           = GetShortestLane(laneSizes);
+                mSizes[index]      = validEstimatedSize;
+                mOffsets[index]    = laneSizes[lane];
+                mLanes[index]      = lane;
                 mLaneIndices[lane].Add(index);
-                laneSizes[lane] += size + mSpacing;
+                laneSizes[lane] += validEstimatedSize + mSpacing;
             }
 
             mTotalSize = GetMaxLaneSize(laneSizes);
@@ -96,6 +109,11 @@ namespace TristinWen.VirtualScroll
         public int CrossAxisCount => mLaneIndices.Length;
 
         /// <summary>
+        /// Gets the number of real-size updates applied to the index.
+        /// </summary>
+        public int Version { get; private set; }
+
+        /// <summary>
         /// Gets an item's main-axis start offset.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -112,7 +130,7 @@ namespace TristinWen.VirtualScroll
         /// <returns>Item size.</returns>
         public float GetSize(int index)
         {
-            return index >= 0 && index < Count ? mSizes[index] : 0f;
+            return index >= 0 && index < Count ? ResolveSize(index) : 0f;
         }
 
         /// <summary>
@@ -154,32 +172,19 @@ namespace TristinWen.VirtualScroll
         /// <param name="results">Reusable destination list.</param>
         public void CollectVisibleIndices(float startOffset, float endOffset, int overscan, List<int> results)
         {
-            results.Clear();
             var validOverscan = Mathf.Max(0, overscan);
-            for (var lane = 0; lane < CrossAxisCount; lane++)
+            while (true)
             {
-                var laneItems = mLaneIndices[lane];
-                if (laneItems.Count == 0)
+                results.Clear();
+                var version = Version;
+                for (var lane = 0; lane < CrossAxisCount; lane++)
                 {
-                    continue;
+                    CollectVisibleLaneIndices(lane, startOffset, endOffset, validOverscan, results);
                 }
 
-                var firstPosition = Mathf.Max(0, FindFirstVisibleLanePosition(lane, startOffset) - validOverscan);
-                for (var position = firstPosition; position < laneItems.Count; position++)
+                if (version == Version)
                 {
-                    var index = laneItems[position];
-                    if (mOffsets[index] > endOffset)
-                    {
-                        var trailingEnd = Mathf.Min(laneItems.Count, position + validOverscan);
-                        for (var trailing = position; trailing < trailingEnd; trailing++)
-                        {
-                            results.Add(laneItems[trailing]);
-                        }
-
-                        break;
-                    }
-
-                    results.Add(index);
+                    return;
                 }
             }
         }
@@ -196,17 +201,25 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var validSize = Mathf.Max(0.01f, size);
-            var delta = validSize - mSizes[index];
+            var validSize    = Mathf.Max(0.01f, size);
+            var delta        = validSize - mSizes[index];
+            var wasResolved  = mResolved[index];
+            mResolved[index] = true;
             if (Mathf.Approximately(delta, 0f))
             {
+                if (!wasResolved)
+                {
+                    Version++;
+                }
+
                 return;
             }
 
             mSizes[index] = validSize;
-            var lane = mLanes[index];
+            Version++;
+            var lane      = mLanes[index];
             var laneItems = mLaneIndices[lane];
-            var found = false;
+            var found     = false;
             foreach (var laneIndex in laneItems)
             {
                 if (laneIndex == index)
@@ -222,6 +235,60 @@ namespace TristinWen.VirtualScroll
             }
 
             RecalculateTotalSize();
+        }
+
+        /// <summary>
+        /// Collects and resolves visible indices for one lane.
+        /// </summary>
+        /// <param name="lane">Lane index.</param>
+        /// <param name="startOffset">Viewport start offset.</param>
+        /// <param name="endOffset">Viewport end offset.</param>
+        /// <param name="overscan">Additional retained items.</param>
+        /// <param name="results">Reusable destination list.</param>
+        private void CollectVisibleLaneIndices(int lane, float startOffset, float endOffset, int overscan, List<int> results)
+        {
+            var laneItems = mLaneIndices[lane];
+            if (laneItems.Count == 0)
+            {
+                return;
+            }
+
+            var firstPosition = Mathf.Max(0, FindFirstVisibleLanePosition(lane, startOffset) - overscan);
+            for (var position = firstPosition; position < laneItems.Count; position++)
+            {
+                var index = laneItems[position];
+                if (mOffsets[index] > endOffset)
+                {
+                    var trailingEnd = Mathf.Min(laneItems.Count, position + overscan);
+                    for (var trailing = position; trailing < trailingEnd; trailing++)
+                    {
+                        ResolveSize(laneItems[trailing]);
+                        results.Add(laneItems[trailing]);
+                    }
+
+                    return;
+                }
+
+                ResolveSize(index);
+                results.Add(index);
+            }
+        }
+
+        /// <summary>
+        /// Resolves an item's real size once.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Resolved main-axis size.</returns>
+        private float ResolveSize(int index)
+        {
+            if (mResolved[index])
+            {
+                return mSizes[index];
+            }
+
+            var size = Mathf.Max(0.01f, mDataSource.GetItemSize(index));
+            UpdateSize(index, size);
+            return mSizes[index];
         }
 
         /// <summary>

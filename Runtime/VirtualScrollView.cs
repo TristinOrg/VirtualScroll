@@ -9,6 +9,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace TristinWen.VirtualScroll
@@ -35,7 +36,14 @@ namespace TristinWen.VirtualScroll
         /// Main-axis item size used in fixed mode.
         /// </summary>
         [Min(0.01f)]
-        public float FixedItemSize = 100f;
+        [FormerlySerializedAs("FixedItemSize")]
+        public float FixedMainAxisSize = 100f;
+
+        /// <summary>
+        /// Estimated main-axis size used until a variable item approaches the viewport.
+        /// </summary>
+        [Min(0.01f)]
+        public float EstimatedMainAxisSize = 100f;
 
         /// <summary>
         /// Uniform distance between adjacent items.
@@ -69,7 +77,7 @@ namespace TristinWen.VirtualScroll
         public bool UseLayoutGroupSettings = true;
 
         /// <summary>
-        /// Keeps <see cref="FixedItemSize"/> instead of using GridLayoutGroup cell size.
+        /// Keeps <see cref="FixedMainAxisSize"/> instead of using GridLayoutGroup cell size.
         /// Variable-size mode always uses sizes supplied by the data source.
         /// </summary>
         public bool OverrideLayoutItemSize;
@@ -185,6 +193,16 @@ namespace TristinWen.VirtualScroll
         /// Gets the last currently materialized data index.
         /// </summary>
         public int LastVisibleIndex => mLastVisible;
+
+        /// <summary>
+        /// Gets or sets the legacy fixed main-axis size name.
+        /// </summary>
+        [System.Obsolete("Use FixedMainAxisSize instead.")]
+        public float FixedItemSize
+        {
+            get => FixedMainAxisSize;
+            set => FixedMainAxisSize = value;
+        }
 
         /// <summary>
         /// Recaptures supported LayoutGroup parameters and rebuilds the current data layout.
@@ -513,15 +531,15 @@ namespace TristinWen.VirtualScroll
             var crossAxisCount = Mathf.Max(1, CrossAxisCount);
             if (SizeMode == EVirtualScrollSizeMode.Fixed)
             {
-                mSizeIndex = new FixedSizeIndex(mDataSource.Count, FixedItemSize, Spacing, crossAxisCount);
+                mSizeIndex = new FixedSizeIndex(mDataSource.Count, FixedMainAxisSize, Spacing, crossAxisCount);
             }
             else if (crossAxisCount == 1)
             {
-                mSizeIndex = new VariableSizeIndex(mDataSource, Spacing);
+                mSizeIndex = new VariableSizeIndex(mDataSource, Spacing, EstimatedMainAxisSize);
             }
             else
             {
-                mSizeIndex = new MasonrySizeIndex(mDataSource, Spacing, crossAxisCount);
+                mSizeIndex = new MasonrySizeIndex(mDataSource, Spacing, crossAxisCount, EstimatedMainAxisSize);
             }
         }
 
@@ -733,14 +751,14 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            mLayoutSnapshot = snapshot;
-            Direction = snapshot.Direction;
-            Spacing = snapshot.MainSpacing;
+            mLayoutSnapshot  = snapshot;
+            Direction        = snapshot.Direction;
+            Spacing          = snapshot.MainSpacing;
             CrossAxisSpacing = snapshot.CrossSpacing;
-            CrossAxisCount = snapshot.CrossAxisCount;
+            CrossAxisCount   = snapshot.CrossAxisCount;
             if (SizeMode == EVirtualScrollSizeMode.Fixed && snapshot.HasFixedMainSize && !OverrideLayoutItemSize)
             {
-                FixedItemSize = snapshot.FixedMainSize;
+                FixedMainAxisSize = snapshot.FixedMainSize;
             }
         }
 
@@ -760,10 +778,15 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var scrollOffset = Mathf.Clamp(GetScrollOffset(), 0f, Mathf.Max(0f, GetLayoutTotalSize()));
+            var scrollOffset     = Mathf.Clamp(GetScrollOffset(), 0f, Mathf.Max(0f, GetLayoutTotalSize()));
             var localStartOffset = Mathf.Max(0f, scrollOffset - GetMainStartPadding());
-            var localEndOffset = Mathf.Max(0f, scrollOffset + GetViewportSize() - GetMainStartPadding());
+            var localEndOffset   = Mathf.Max(0f, scrollOffset + GetViewportSize() - GetMainStartPadding());
+            var sizeIndexVersion = mSizeIndex.Version;
             mSizeIndex.CollectVisibleIndices(localStartOffset, localEndOffset, Overscan, mDesiredIndices);
+            if (sizeIndexVersion != mSizeIndex.Version)
+            {
+                UpdateContentSize();
+            }
             mDesiredIndexSet.Clear();
             var first = mSizeIndex.Count;
             var last = -1;

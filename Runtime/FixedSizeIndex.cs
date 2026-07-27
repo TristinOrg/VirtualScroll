@@ -74,6 +74,11 @@ namespace TristinWen.VirtualScroll
         public int CrossAxisCount => mCrossAxisCount;
 
         /// <summary>
+        /// Gets the immutable fixed-layout revision.
+        /// </summary>
+        public int Version => 0;
+
+        /// <summary>
         /// Gets the offset at which an item starts.
         /// </summary>
         /// <param name="index">Data index.</param>

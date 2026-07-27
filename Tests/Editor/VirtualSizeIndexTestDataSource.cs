@@ -35,6 +35,11 @@ namespace TristinWen.VirtualScroll.Tests
         public int Count => mSizes.Length;
 
         /// <summary>
+        /// Gets the number of size requests made by an index.
+        /// </summary>
+        public int SizeRequestCount { get; private set; }
+
+        /// <summary>
         /// Gets the single test item type.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -51,6 +56,7 @@ namespace TristinWen.VirtualScroll.Tests
         /// <returns>Configured size.</returns>
         public float GetItemSize(int index)
         {
+            SizeRequestCount++;
             return mSizes[index];
         }
 

@@ -137,7 +137,7 @@ namespace TristinWen.VirtualScroll.Tests
 
             Assert.IsFalse(layoutGroup.enabled);
             Assert.AreEqual(EVirtualScrollDirection.Vertical, scrollView.Direction);
-            Assert.AreEqual(60f, scrollView.FixedItemSize);
+            Assert.AreEqual(60f, scrollView.FixedMainAxisSize);
             Assert.AreEqual(11f, scrollView.Spacing);
             Assert.AreEqual(7f, scrollView.CrossAxisSpacing);
             Assert.AreEqual(2, scrollView.CrossAxisCount);
@@ -161,12 +161,12 @@ namespace TristinWen.VirtualScroll.Tests
             var layoutGroup = AddGridLayout(scrollView.content);
             var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
             scrollView.OverrideLayoutItemSize = true;
-            scrollView.FixedItemSize = 90f;
+            scrollView.FixedMainAxisSize = 90f;
 
             scrollView.SetDataSource(dataSource);
 
             Assert.IsFalse(layoutGroup.enabled);
-            Assert.AreEqual(90f, scrollView.FixedItemSize);
+            Assert.AreEqual(90f, scrollView.FixedMainAxisSize);
             Assert.AreEqual(11f, scrollView.Spacing);
             Assert.AreEqual(7f, scrollView.CrossAxisSpacing);
             Assert.AreEqual(2, scrollView.CrossAxisCount);
@@ -188,6 +188,7 @@ namespace TristinWen.VirtualScroll.Tests
             layoutGroup.padding = new RectOffset(5, 7, 20, 30);
             var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
             scrollView.SizeMode = EVirtualScrollSizeMode.Variable;
+            scrollView.EstimatedMainAxisSize = 50f;
 
             scrollView.SetDataSource(dataSource);
 
@@ -201,6 +202,23 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.AreEqual(new Vector2(5f, -20f), firstItem.anchoredPosition);
             Assert.AreEqual(new Vector2(5f, -83f), secondItem.anchoredPosition);
             Assert.AreEqual(new Vector2(288f, 50f), firstItem.rect.size);
+        }
+
+        /// <summary>
+        /// Verifies setting a large variable data source only resolves first-screen sizes.
+        /// </summary>
+        [Test]
+        public void LargeVariableDataSourceDoesNotResolveEveryItemSize()
+        {
+            var scrollView = CreateScrollView();
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 10000 };
+            scrollView.SizeMode              = EVirtualScrollSizeMode.Variable;
+            scrollView.EstimatedMainAxisSize = 50f;
+
+            scrollView.SetDataSource(dataSource);
+
+            Assert.LessOrEqual(dataSource.SizeRequestCount, 8);
+            Assert.Less(scrollView.LastVisibleIndex, 10);
         }
 
         /// <summary>
@@ -222,7 +240,7 @@ namespace TristinWen.VirtualScroll.Tests
             var scrollView = mRoot.GetComponent<VirtualScrollView>();
             scrollView.viewport = viewport;
             scrollView.content = content;
-            scrollView.FixedItemSize = 50f;
+            scrollView.FixedMainAxisSize = 50f;
             scrollView.SizeMode = EVirtualScrollSizeMode.Fixed;
             scrollView.Overscan = 1;
             return scrollView;

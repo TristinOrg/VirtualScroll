@@ -31,6 +31,11 @@ namespace TristinWen.VirtualScroll
         int CrossAxisCount { get; }
 
         /// <summary>
+        /// Gets the revision incremented whenever indexed dimensions change.
+        /// </summary>
+        int Version { get; }
+
+        /// <summary>
         /// Gets the main-axis offset at which an item starts.
         /// </summary>
         /// <param name="index">Data index.</param>

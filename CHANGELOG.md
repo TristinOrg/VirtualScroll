@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Changed variable-size indexing to resolve `GetItemSize` lazily near the viewport instead of querying the entire data set during initialization.
+- Renamed `FixedItemSize` to `FixedMainAxisSize` with serialized-data migration and a source-compatible obsolete alias.
+- Added `EstimatedMainAxisSize` for unmeasured variable items and large-data-set request-count coverage.
 - Added explicit reset, offset, anchor, and end-pinned refresh strategies.
 - Added incremental insertion, removal, and move notifications that retain visible views.
 - Added optional unscaled-time insertion and removal animations.
