@@ -24,13 +24,13 @@
 Open **Window > Package Manager**, select **Add package from git URL**, and enter:
 
 ```text
-https://github.com/TristinWen/VirtualScroll.git
+https://github.com/TristinOrg/VirtualScroll.git
 ```
 
 You can pin a release tag:
 
 ```text
-https://github.com/TristinWen/VirtualScroll.git#v1.0.0
+https://github.com/TristinOrg/VirtualScroll.git#v1.0.0
 ```
 
 ## Setup
