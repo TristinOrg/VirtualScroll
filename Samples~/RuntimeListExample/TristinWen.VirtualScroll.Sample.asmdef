@@ -1,0 +1,17 @@
+{
+  "name": "TristinWen.VirtualScroll.Sample",
+  "rootNamespace": "TristinWen.VirtualScroll.Sample",
+  "references": [
+    "TristinWen.VirtualScroll",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
