@@ -73,6 +73,17 @@ namespace TristinWen.VirtualScroll
         public float ChangeAnimationDuration = 0.2f;
 
         /// <summary>
+        /// Automatically captures and disables a supported LayoutGroup on the content transform.
+        /// </summary>
+        public bool UseLayoutGroupSettings = true;
+
+        /// <summary>
+        /// Keeps <see cref="FixedItemSize"/> instead of using GridLayoutGroup cell size.
+        /// Variable-size mode always uses sizes supplied by the data source.
+        /// </summary>
+        public bool OverrideLayoutItemSize;
+
+        /// <summary>
         /// Active views keyed by data index.
         /// </summary>
         private readonly Dictionary<int, VirtualScrollSlot> mActiveSlots = new();
@@ -153,6 +164,36 @@ namespace TristinWen.VirtualScroll
         private int mAnimatedInsertEnd = -1;
 
         /// <summary>
+        /// Supported LayoutGroup captured from the content transform.
+        /// </summary>
+        private LayoutGroup mCapturedLayoutGroup;
+
+        /// <summary>
+        /// Captured parameters used after the source LayoutGroup is disabled.
+        /// </summary>
+        private VirtualScrollLayoutSnapshot mLayoutSnapshot;
+
+        /// <summary>
+        /// Original enabled state restored when this component is destroyed.
+        /// </summary>
+        private bool mLayoutGroupWasEnabled;
+
+        /// <summary>
+        /// Content size fitter disabled while virtual layout owns content dimensions.
+        /// </summary>
+        private ContentSizeFitter mCapturedContentSizeFitter;
+
+        /// <summary>
+        /// Original content size fitter enabled state.
+        /// </summary>
+        private bool mContentSizeFitterWasEnabled;
+
+        /// <summary>
+        /// Whether automatic content layout capture has already run.
+        /// </summary>
+        private bool mLayoutCaptureCompleted;
+
+        /// <summary>
         /// Gets the first currently materialized data index.
         /// </summary>
         public int FirstVisibleIndex => mFirstVisible;
@@ -161,6 +202,22 @@ namespace TristinWen.VirtualScroll
         /// Gets the last currently materialized data index.
         /// </summary>
         public int LastVisibleIndex => mLastVisible;
+
+        /// <summary>
+        /// Recaptures supported LayoutGroup parameters and rebuilds the current data layout.
+        /// Use this after changing LayoutGroup values at runtime.
+        /// </summary>
+        /// <param name="positionMode">Position strategy applied after recapturing layout.</param>
+        public void RecaptureLayoutGroup(EVirtualScrollPositionMode positionMode = EVirtualScrollPositionMode.KeepAnchor)
+        {
+            RestoreCapturedLayoutComponents();
+            mLayoutCaptureCompleted = false;
+            CaptureAndDisableLayoutGroup();
+            if (mDataSource != null)
+            {
+                ReloadData(positionMode);
+            }
+        }
 
         /// <summary>
         /// Sets the data source and rebuilds the virtual size index.
@@ -377,11 +434,11 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var anchorIndex = Mathf.Max(0, mSizeIndex.FindIndex(GetScrollOffset()));
-            var anchorDelta = GetScrollOffset() - mSizeIndex.GetOffset(anchorIndex);
+            var anchorIndex = Mathf.Max(0, mSizeIndex.FindIndex(Mathf.Max(0f, GetScrollOffset() - GetMainStartPadding())));
+            var anchorDelta = GetScrollOffset() - GetItemMainOffset(anchorIndex);
             mSizeIndex.UpdateSize(index, newSize);
             UpdateContentSize();
-            SetScrollOffset(mSizeIndex.GetOffset(anchorIndex) + anchorDelta);
+            SetScrollOffset(GetItemMainOffset(anchorIndex) + anchorDelta);
             PositionActiveItems();
             RefreshVisible(true);
         }
@@ -399,7 +456,7 @@ namespace TristinWen.VirtualScroll
             }
 
             var validIndex = Mathf.Clamp(index, 0, mSizeIndex.Count - 1);
-            var offset = mSizeIndex.GetOffset(validIndex);
+            var offset = GetItemMainOffset(validIndex);
             var freeSpace = Mathf.Max(0f, GetViewportSize() - mSizeIndex.GetSize(validIndex));
             if (alignment == EVirtualScrollAlignment.Center)
             {
@@ -461,6 +518,7 @@ namespace TristinWen.VirtualScroll
             RecycleAnimatingRemovalSlots();
             mPools.Clear();
             mSlotPool.Clear();
+            RestoreCapturedLayoutComponents();
             base.OnDestroy();
         }
 
@@ -493,8 +551,8 @@ namespace TristinWen.VirtualScroll
         private void CapturePosition(out float offset, out int anchorIndex, out float anchorDelta)
         {
             offset = GetScrollOffset();
-            anchorIndex = mSizeIndex is null || mSizeIndex.Count == 0 ? -1 : Mathf.Max(0, mSizeIndex.FindIndex(offset));
-            anchorDelta = anchorIndex < 0 ? 0f : offset - mSizeIndex.GetOffset(anchorIndex);
+            anchorIndex = mSizeIndex is null || mSizeIndex.Count == 0 ? -1 : Mathf.Max(0, mSizeIndex.FindIndex(Mathf.Max(0f, offset - GetMainStartPadding())));
+            anchorDelta = anchorIndex < 0 ? 0f : offset - GetItemMainOffset(anchorIndex);
         }
 
         /// <summary>
@@ -514,7 +572,7 @@ namespace TristinWen.VirtualScroll
             else if (positionMode == EVirtualScrollPositionMode.KeepAnchor && mSizeIndex.Count > 0)
             {
                 var validAnchor = Mathf.Clamp(anchorIndex, 0, mSizeIndex.Count - 1);
-                offset = mSizeIndex.GetOffset(validAnchor) + anchorDelta;
+                offset = GetItemMainOffset(validAnchor) + anchorDelta;
             }
             else if (positionMode == EVirtualScrollPositionMode.StickToEnd)
             {
@@ -662,9 +720,77 @@ namespace TristinWen.VirtualScroll
             vertical = Direction == EVirtualScrollDirection.Vertical;
             horizontal = Direction == EVirtualScrollDirection.Horizontal;
             mResolvedViewport = viewport ? viewport : transform as RectTransform;
+            CaptureAndDisableLayoutGroup();
+            vertical = Direction == EVirtualScrollDirection.Vertical;
+            horizontal = Direction == EVirtualScrollDirection.Horizontal;
             content.anchorMin = Vector2.up;
             content.anchorMax = Vector2.up;
             content.pivot = Vector2.up;
+        }
+
+        /// <summary>
+        /// Captures supported content layout parameters once and disables runtime layout rebuilding.
+        /// </summary>
+        private void CaptureAndDisableLayoutGroup()
+        {
+            if (mLayoutCaptureCompleted || !UseLayoutGroupSettings || !content || !mResolvedViewport)
+            {
+                return;
+            }
+
+            mLayoutCaptureCompleted = true;
+            var layoutGroup = content.GetComponent<LayoutGroup>();
+            if (!layoutGroup)
+            {
+                return;
+            }
+
+            var snapshot = VirtualScrollLayoutSnapshot.Capture(layoutGroup, mResolvedViewport.rect.size);
+            if (snapshot is null)
+            {
+                Debug.LogWarning($"VirtualScrollView does not support automatic capture for {layoutGroup.GetType().Name}.", this);
+                return;
+            }
+
+            mCapturedLayoutGroup = layoutGroup;
+            mLayoutGroupWasEnabled = layoutGroup.enabled;
+            mLayoutSnapshot = snapshot;
+            Direction = snapshot.Direction;
+            Spacing = snapshot.MainSpacing;
+            CrossAxisSpacing = snapshot.CrossSpacing;
+            CrossAxisCount = snapshot.CrossAxisCount;
+            if (SizeMode == EVirtualScrollSizeMode.Fixed && snapshot.HasFixedMainSize && !OverrideLayoutItemSize)
+            {
+                FixedItemSize = snapshot.FixedMainSize;
+            }
+
+            layoutGroup.enabled = false;
+            mCapturedContentSizeFitter = content.GetComponent<ContentSizeFitter>();
+            if (mCapturedContentSizeFitter)
+            {
+                mContentSizeFitterWasEnabled = mCapturedContentSizeFitter.enabled;
+                mCapturedContentSizeFitter.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Restores captured layout components to their original enabled state.
+        /// </summary>
+        private void RestoreCapturedLayoutComponents()
+        {
+            if (mCapturedLayoutGroup)
+            {
+                mCapturedLayoutGroup.enabled = mLayoutGroupWasEnabled;
+            }
+
+            if (mCapturedContentSizeFitter)
+            {
+                mCapturedContentSizeFitter.enabled = mContentSizeFitterWasEnabled;
+            }
+
+            mCapturedLayoutGroup = null;
+            mCapturedContentSizeFitter = null;
+            mLayoutSnapshot = null;
         }
 
         /// <summary>
@@ -683,8 +809,10 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var scrollOffset = Mathf.Clamp(GetScrollOffset(), 0f, Mathf.Max(0f, mSizeIndex.TotalSize));
-            mSizeIndex.CollectVisibleIndices(scrollOffset, scrollOffset + GetViewportSize(), Overscan, mDesiredIndices);
+            var scrollOffset = Mathf.Clamp(GetScrollOffset(), 0f, Mathf.Max(0f, GetLayoutTotalSize()));
+            var localStartOffset = Mathf.Max(0f, scrollOffset - GetMainStartPadding());
+            var localEndOffset = Mathf.Max(0f, scrollOffset + GetViewportSize() - GetMainStartPadding());
+            mSizeIndex.CollectVisibleIndices(localStartOffset, localEndOffset, Overscan, mDesiredIndices);
             mDesiredIndexSet.Clear();
             var first = mSizeIndex.Count;
             var last = -1;
@@ -775,11 +903,20 @@ namespace TristinWen.VirtualScroll
         /// <param name="slot">Active slot to position.</param>
         private void PositionSlot(VirtualScrollSlot slot)
         {
-            var offset = mSizeIndex.GetOffset(slot.Index);
+            var offset = GetItemMainOffset(slot.Index);
             var size = mSizeIndex.GetSize(slot.Index);
             var crossAxisCount = Mathf.Max(1, mSizeIndex.CrossAxisCount);
-            var crossAxisSize = Mathf.Max(0.01f, (GetViewportCrossAxisSize() - (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing)) / crossAxisCount);
-            var crossOffset = mSizeIndex.GetCrossAxisIndex(slot.Index) * (crossAxisSize + Mathf.Max(0f, CrossAxisSpacing));
+            var availableCrossSize = Mathf.Max(0.01f, GetViewportCrossAxisSize() - GetCrossStartPadding() - GetCrossEndPadding());
+            var crossAxisSize = mLayoutSnapshot != null && mLayoutSnapshot.HasFixedCrossSize ? mLayoutSnapshot.FixedCrossSize : Mathf.Max(0.01f, (availableCrossSize - (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing)) / crossAxisCount);
+            var occupiedCrossSize = crossAxisCount * crossAxisSize + (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing);
+            var alignmentOffset = mLayoutSnapshot is null ? 0f : Mathf.Max(0f, availableCrossSize - occupiedCrossSize) * mLayoutSnapshot.GetCrossAlignmentFactor();
+            var crossAxisIndex = mSizeIndex.GetCrossAxisIndex(slot.Index);
+            if (mLayoutSnapshot != null && mLayoutSnapshot.ReverseCrossAxis)
+            {
+                crossAxisIndex = crossAxisCount - crossAxisIndex - 1;
+            }
+
+            var crossOffset = GetCrossStartPadding() + alignmentOffset + crossAxisIndex * (crossAxisSize + Mathf.Max(0f, CrossAxisSpacing));
             if (Direction == EVirtualScrollDirection.Vertical)
             {
                 slot.Item.anchoredPosition = new Vector2(crossOffset, -offset);
@@ -1072,11 +1209,11 @@ namespace TristinWen.VirtualScroll
             if (Direction == EVirtualScrollDirection.Vertical)
             {
                 size.x = mResolvedViewport.rect.width;
-                size.y = Mathf.Max(mResolvedViewport.rect.height, mSizeIndex.TotalSize);
+                size.y = Mathf.Max(mResolvedViewport.rect.height, GetLayoutTotalSize());
             }
             else
             {
-                size.x = Mathf.Max(mResolvedViewport.rect.width, mSizeIndex.TotalSize);
+                size.x = Mathf.Max(mResolvedViewport.rect.width, GetLayoutTotalSize());
                 size.y = mResolvedViewport.rect.height;
             }
 
@@ -1151,12 +1288,67 @@ namespace TristinWen.VirtualScroll
         }
 
         /// <summary>
+        /// Gets an item's main-axis offset including captured leading padding.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Main-axis content offset.</returns>
+        private float GetItemMainOffset(int index)
+        {
+            return GetMainStartPadding() + mSizeIndex.GetOffset(index);
+        }
+
+        /// <summary>
+        /// Gets total content size including captured leading and trailing padding.
+        /// </summary>
+        /// <returns>Total main-axis layout size.</returns>
+        private float GetLayoutTotalSize()
+        {
+            return GetMainStartPadding() + mSizeIndex.TotalSize + GetMainEndPadding();
+        }
+
+        /// <summary>
+        /// Gets captured leading main-axis padding.
+        /// </summary>
+        /// <returns>Leading padding.</returns>
+        private float GetMainStartPadding()
+        {
+            return mLayoutSnapshot?.MainStartPadding ?? 0f;
+        }
+
+        /// <summary>
+        /// Gets captured trailing main-axis padding.
+        /// </summary>
+        /// <returns>Trailing padding.</returns>
+        private float GetMainEndPadding()
+        {
+            return mLayoutSnapshot?.MainEndPadding ?? 0f;
+        }
+
+        /// <summary>
+        /// Gets captured leading cross-axis padding.
+        /// </summary>
+        /// <returns>Leading cross-axis padding.</returns>
+        private float GetCrossStartPadding()
+        {
+            return mLayoutSnapshot?.CrossStartPadding ?? 0f;
+        }
+
+        /// <summary>
+        /// Gets captured trailing cross-axis padding.
+        /// </summary>
+        /// <returns>Trailing cross-axis padding.</returns>
+        private float GetCrossEndPadding()
+        {
+            return mLayoutSnapshot?.CrossEndPadding ?? 0f;
+        }
+
+        /// <summary>
         /// Gets the greatest legal main-axis scroll offset.
         /// </summary>
         /// <returns>Maximum scroll offset.</returns>
         private float GetMaxScrollOffset()
         {
-            return mSizeIndex is null ? 0f : Mathf.Max(0f, mSizeIndex.TotalSize - GetViewportSize());
+            return mSizeIndex is null ? 0f : Mathf.Max(0f, GetLayoutTotalSize() - GetViewportSize());
         }
     }
 }

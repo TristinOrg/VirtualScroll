@@ -8,6 +8,8 @@
 - Added fixed-size multi-lane grids and variable-size masonry layouts.
 - Added independent uniform main-axis and cross-axis spacing.
 - Added grid and masonry EditMode coverage.
+- Added automatic capture and runtime disabling for vertical, horizontal, and grid LayoutGroups.
+- Added LayoutGroup padding, alignment, cell size, constraint, corner, and spacing integration.
 
 ## [1.0.0] - 2026-07-27
 

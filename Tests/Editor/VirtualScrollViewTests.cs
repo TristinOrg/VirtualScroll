@@ -8,6 +8,7 @@
 
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace TristinWen.VirtualScroll.Tests
 {
@@ -123,6 +124,86 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies GridLayoutGroup parameters are captured before the component is disabled.
+        /// </summary>
+        [Test]
+        public void GridLayoutGroupIsCapturedDisabledAndRestored()
+        {
+            var scrollView = CreateScrollView();
+            var layoutGroup = AddGridLayout(scrollView.content);
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
+
+            scrollView.SetDataSource(dataSource);
+
+            Assert.IsFalse(layoutGroup.enabled);
+            Assert.AreEqual(EVirtualScrollDirection.Vertical, scrollView.Direction);
+            Assert.AreEqual(60f, scrollView.FixedItemSize);
+            Assert.AreEqual(11f, scrollView.Spacing);
+            Assert.AreEqual(7f, scrollView.CrossAxisSpacing);
+            Assert.AreEqual(2, scrollView.CrossAxisCount);
+            Assert.AreEqual(414f, scrollView.content.sizeDelta.y, 0.001f);
+            var firstItem = scrollView.content.Find("Test Item 0") as RectTransform;
+            Assert.NotNull(firstItem);
+            Assert.AreEqual(new Vector2(61.5f, -30f), firstItem.anchoredPosition);
+            Assert.AreEqual(new Vector2(80f, 60f), firstItem.rect.size);
+
+            Object.DestroyImmediate(scrollView);
+            Assert.IsTrue(layoutGroup.enabled);
+        }
+
+        /// <summary>
+        /// Verifies custom fixed item size overrides only cell main size while layout spacing remains captured.
+        /// </summary>
+        [Test]
+        public void ItemSizeOverrideKeepsLayoutGroupSpacing()
+        {
+            var scrollView = CreateScrollView();
+            var layoutGroup = AddGridLayout(scrollView.content);
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.OverrideLayoutItemSize = true;
+            scrollView.FixedItemSize = 90f;
+
+            scrollView.SetDataSource(dataSource);
+
+            Assert.IsFalse(layoutGroup.enabled);
+            Assert.AreEqual(90f, scrollView.FixedItemSize);
+            Assert.AreEqual(11f, scrollView.Spacing);
+            Assert.AreEqual(7f, scrollView.CrossAxisSpacing);
+            Assert.AreEqual(2, scrollView.CrossAxisCount);
+            var firstItem = scrollView.content.Find("Test Item 0") as RectTransform;
+            Assert.NotNull(firstItem);
+            Assert.AreEqual(90f, firstItem.rect.height, 0.001f);
+            Assert.AreEqual(80f, firstItem.rect.width, 0.001f);
+        }
+
+        /// <summary>
+        /// Verifies adaptive item sizes retain VerticalLayoutGroup spacing and padding.
+        /// </summary>
+        [Test]
+        public void VariableItemSizeKeepsVerticalLayoutGroupSpacing()
+        {
+            var scrollView = CreateScrollView();
+            var layoutGroup = scrollView.content.gameObject.AddComponent<VerticalLayoutGroup>();
+            layoutGroup.spacing = 13f;
+            layoutGroup.padding = new RectOffset(5, 7, 20, 30);
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.SizeMode = EVirtualScrollSizeMode.Variable;
+
+            scrollView.SetDataSource(dataSource);
+
+            Assert.IsFalse(layoutGroup.enabled);
+            Assert.AreEqual(13f, scrollView.Spacing);
+            Assert.AreEqual(667f, scrollView.content.sizeDelta.y, 0.001f);
+            var firstItem = scrollView.content.Find("Test Item 0") as RectTransform;
+            var secondItem = scrollView.content.Find("Test Item 1") as RectTransform;
+            Assert.NotNull(firstItem);
+            Assert.NotNull(secondItem);
+            Assert.AreEqual(new Vector2(5f, -20f), firstItem.anchoredPosition);
+            Assert.AreEqual(new Vector2(5f, -83f), secondItem.anchoredPosition);
+            Assert.AreEqual(new Vector2(288f, 50f), firstItem.rect.size);
+        }
+
+        /// <summary>
         /// Creates a vertical VirtualScrollView with a 300-by-300 viewport.
         /// </summary>
         /// <returns>Configured scroll view.</returns>
@@ -145,6 +226,25 @@ namespace TristinWen.VirtualScroll.Tests
             scrollView.SizeMode = EVirtualScrollSizeMode.Fixed;
             scrollView.Overscan = 1;
             return scrollView;
+        }
+
+        /// <summary>
+        /// Adds a representative fixed-column GridLayoutGroup to test content.
+        /// </summary>
+        /// <param name="content">Content transform.</param>
+        /// <returns>Configured layout group.</returns>
+        private static GridLayoutGroup AddGridLayout(RectTransform content)
+        {
+            var layoutGroup = content.gameObject.AddComponent<GridLayoutGroup>();
+            layoutGroup.cellSize = new Vector2(80f, 60f);
+            layoutGroup.spacing = new Vector2(7f, 11f);
+            layoutGroup.padding = new RectOffset(10, 20, 30, 40);
+            layoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            layoutGroup.constraintCount = 2;
+            layoutGroup.startAxis = GridLayoutGroup.Axis.Horizontal;
+            layoutGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            layoutGroup.childAlignment = TextAnchor.UpperCenter;
+            return layoutGroup;
         }
     }
 }

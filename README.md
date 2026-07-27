@@ -8,6 +8,7 @@
 - O(1) visible-index lookup for fixed-size items.
 - O(log N) lookup and size updates for variable-size items using a Fenwick tree.
 - Fixed-size multi-lane grids and variable-size masonry layouts.
+- Automatic runtime capture for `VerticalLayoutGroup`, `HorizontalLayoutGroup`, and `GridLayoutGroup`.
 - Independent uniform main-axis and cross-axis spacing.
 - Typed item pools for lists with multiple visual templates.
 - Runtime item creation through a small data-source interface.
@@ -41,7 +42,7 @@ https://github.com/TristinOrg/VirtualScroll.git#v1.0.0
 1. Create a normal uGUI `Scroll View`.
 2. Replace its `ScrollRect` component with `VirtualScrollView`.
 3. Keep the content reference assigned. Viewport may be assigned explicitly or left empty to use the component RectTransform.
-4. Do not add a `LayoutGroup` or `ContentSizeFitter` to the content. `VirtualScrollView` owns item positions and content size.
+4. A supported `LayoutGroup` may remain on the content for familiar authoring. Its parameters are captured and the component is disabled at runtime. A matching `ContentSizeFitter` is also disabled while virtual layout owns content size.
 5. Implement `IVirtualScrollDataSource` and call `SetDataSource` after your data is ready.
 
 Initialization can explicitly select its starting position behavior:
@@ -159,6 +160,20 @@ Set `CrossAxisCount` above one:
 - `SizeMode.Variable` assigns equal-width items to the currently shortest lane, producing a masonry layout.
 - `Spacing` controls distance along the scrolling axis.
 - `CrossAxisSpacing` controls distance between lanes.
+
+## LayoutGroup authoring
+
+With `UseLayoutGroupSettings` enabled (the default), `VirtualScrollView` captures these values from the content at initialization and then disables the source component to avoid continuous layout rebuilding:
+
+- `VerticalLayoutGroup`: vertical direction, padding, spacing, and alignment.
+- `HorizontalLayoutGroup`: horizontal direction, padding, spacing, and alignment.
+- `GridLayoutGroup`: direction, padding, spacing, cell size, constraint/count, alignment, start axis, and cross-axis start corner.
+
+For a fixed-size grid, leave `OverrideLayoutItemSize` disabled to use `GridLayoutGroup.cellSize`. Enable it to keep `FixedItemSize`; spacing, padding, lane count, alignment, and cross-axis cell size still come from the GridLayoutGroup.
+
+For variable-size items such as mail content, select `SizeMode.Variable`. `GetItemSize(index)` controls each item's main-axis size while spacing and lane parameters continue to come from the captured LayoutGroup.
+
+Call `RecaptureLayoutGroup()` after changing LayoutGroup parameters at runtime. Destroying `VirtualScrollView` restores the captured LayoutGroup and ContentSizeFitter to their original enabled states.
 
 ## Performance model
 
