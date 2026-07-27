@@ -42,5 +42,22 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.AreEqual(0f, index.TotalSize);
             Assert.AreEqual(-1, index.FindIndex(0f));
         }
+
+        /// <summary>
+        /// Verifies fixed-size rows share offsets across equal-width lanes.
+        /// </summary>
+        [Test]
+        public void FixedGridMapsRowsAndLanes()
+        {
+            var index = new FixedSizeIndex(8, 100f, 10f, 3);
+            var visible = new System.Collections.Generic.List<int>();
+
+            Assert.AreEqual(0f, index.GetOffset(2));
+            Assert.AreEqual(110f, index.GetOffset(3));
+            Assert.AreEqual(320f, index.TotalSize);
+            Assert.AreEqual(2, index.GetCrossAxisIndex(5));
+            index.CollectVisibleIndices(105f, 215f, 0, visible);
+            CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4, 5 }, visible);
+        }
     }
 }

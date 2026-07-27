@@ -7,6 +7,7 @@
 //---------------------------------------------------------------------------------------
 
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace TristinWen.VirtualScroll
 {
@@ -65,6 +66,11 @@ namespace TristinWen.VirtualScroll
         public float TotalSize => Count == 0 ? 0f : GetPrefixSum(Count) - mSpacing;
 
         /// <summary>
+        /// Gets the single cross-axis lane used by a linear list.
+        /// </summary>
+        public int CrossAxisCount => 1;
+
+        /// <summary>
         /// Gets the offset at which an item starts.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -113,6 +119,40 @@ namespace TristinWen.VirtualScroll
             }
 
             return Mathf.Clamp(index, 0, Count - 1);
+        }
+
+        /// <summary>
+        /// Gets the only lane occupied by a linear item.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Zero.</returns>
+        public int GetCrossAxisIndex(int index)
+        {
+            return 0;
+        }
+
+        /// <summary>
+        /// Collects the contiguous indices intersecting a viewport range.
+        /// </summary>
+        /// <param name="startOffset">Viewport start offset.</param>
+        /// <param name="endOffset">Viewport end offset.</param>
+        /// <param name="overscan">Additional retained items.</param>
+        /// <param name="results">Reusable destination list.</param>
+        public void CollectVisibleIndices(float startOffset, float endOffset, int overscan, List<int> results)
+        {
+            results.Clear();
+            if (Count == 0)
+            {
+                return;
+            }
+
+            var validOverscan = Mathf.Max(0, overscan);
+            var first = Mathf.Max(0, FindIndex(startOffset) - validOverscan);
+            var last = Mathf.Min(Count - 1, FindIndex(endOffset) + validOverscan);
+            for (var index = first; index <= last; index++)
+            {
+                results.Add(index);
+            }
         }
 
         /// <summary>

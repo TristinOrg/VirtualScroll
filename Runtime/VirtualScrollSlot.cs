@@ -29,5 +29,25 @@ namespace TristinWen.VirtualScroll
         /// Pool type identifier.
         /// </summary>
         public int ItemType;
+
+        /// <summary>
+        /// Canvas group cached when change animations are enabled.
+        /// </summary>
+        public CanvasGroup CanvasGroup;
+
+        /// <summary>
+        /// Changes whenever the slot is rebound so stale animation coroutines can stop safely.
+        /// </summary>
+        public int AnimationVersion;
+
+        /// <summary>
+        /// Item scale restored after change animation.
+        /// </summary>
+        public Vector3 RestingScale;
+
+        /// <summary>
+        /// Canvas-group opacity restored after change animation.
+        /// </summary>
+        public float RestingAlpha = 1f;
     }
 }

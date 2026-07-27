@@ -6,6 +6,8 @@
 // Desc: Defines offset lookup operations used by virtualized layouts.
 //---------------------------------------------------------------------------------------
 
+using System.Collections.Generic;
+
 namespace TristinWen.VirtualScroll
 {
     /// <summary>
@@ -22,6 +24,11 @@ namespace TristinWen.VirtualScroll
         /// Gets the total content size.
         /// </summary>
         float TotalSize { get; }
+
+        /// <summary>
+        /// Gets the number of equal-width lanes across the scrolling axis.
+        /// </summary>
+        int CrossAxisCount { get; }
 
         /// <summary>
         /// Gets the main-axis offset at which an item starts.
@@ -43,6 +50,22 @@ namespace TristinWen.VirtualScroll
         /// <param name="offset">Main-axis content offset.</param>
         /// <returns>Data index.</returns>
         int FindIndex(float offset);
+
+        /// <summary>
+        /// Gets the cross-axis lane occupied by an item.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Zero-based lane index.</returns>
+        int GetCrossAxisIndex(int index);
+
+        /// <summary>
+        /// Collects indices intersecting a main-axis viewport range.
+        /// </summary>
+        /// <param name="startOffset">Viewport start offset.</param>
+        /// <param name="endOffset">Viewport end offset.</param>
+        /// <param name="overscan">Additional items or rows retained outside the viewport.</param>
+        /// <param name="results">Reusable destination list.</param>
+        void CollectVisibleIndices(float startOffset, float endOffset, int overscan, List<int> results);
 
         /// <summary>
         /// Updates one item's main-axis size.

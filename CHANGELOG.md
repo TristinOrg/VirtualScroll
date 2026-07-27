@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- Added explicit reset, offset, anchor, and end-pinned refresh strategies.
+- Added incremental insertion, removal, and move notifications that retain visible views.
+- Added optional unscaled-time insertion and removal animations.
+- Added fixed-size multi-lane grids and variable-size masonry layouts.
+- Added independent uniform main-axis and cross-axis spacing.
+- Added grid and masonry EditMode coverage.
+
 ## [1.0.0] - 2026-07-27
 
 - Added fixed-size vertical and horizontal virtualized lists.

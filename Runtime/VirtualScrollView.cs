@@ -6,6 +6,7 @@
 // Desc: High-performance virtualized uGUI list for fixed-size and variable-size items.
 //---------------------------------------------------------------------------------------
 
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,6 +49,30 @@ namespace TristinWen.VirtualScroll
         public int Overscan = 1;
 
         /// <summary>
+        /// Number of equal-width lanes across the scrolling axis.
+        /// Fixed-size lists become grids and variable-size lists become masonry layouts when greater than one.
+        /// </summary>
+        [Min(1)]
+        public int CrossAxisCount = 1;
+
+        /// <summary>
+        /// Uniform distance between adjacent cross-axis lanes.
+        /// </summary>
+        [Min(0f)]
+        public float CrossAxisSpacing;
+
+        /// <summary>
+        /// Enables scale and opacity animations for visible inserted and removed items.
+        /// </summary>
+        public bool AnimateChanges;
+
+        /// <summary>
+        /// Duration of insertion and removal animations in seconds.
+        /// </summary>
+        [Min(0.01f)]
+        public float ChangeAnimationDuration = 0.2f;
+
+        /// <summary>
         /// Active views keyed by data index.
         /// </summary>
         private readonly Dictionary<int, VirtualScrollSlot> mActiveSlots = new();
@@ -66,6 +91,26 @@ namespace TristinWen.VirtualScroll
         /// Reusable index buffer used while recycling views.
         /// </summary>
         private readonly List<int> mRecycleIndices = new();
+
+        /// <summary>
+        /// Reusable destination populated by the current layout index.
+        /// </summary>
+        private readonly List<int> mDesiredIndices = new();
+
+        /// <summary>
+        /// Reusable membership set for non-contiguous masonry visibility.
+        /// </summary>
+        private readonly HashSet<int> mDesiredIndexSet = new();
+
+        /// <summary>
+        /// Removed slots currently completing their exit animation.
+        /// </summary>
+        private readonly List<VirtualScrollSlot> mAnimatingRemovalSlots = new();
+
+        /// <summary>
+        /// Reusable slot buffer used while remapping indices after collection changes.
+        /// </summary>
+        private readonly List<VirtualScrollSlot> mRemapSlots = new();
 
         /// <summary>
         /// Current data source.
@@ -98,6 +143,16 @@ namespace TristinWen.VirtualScroll
         private bool mUpdatingLayout;
 
         /// <summary>
+        /// Inclusive first inserted index awaiting an entrance animation.
+        /// </summary>
+        private int mAnimatedInsertFirst = -1;
+
+        /// <summary>
+        /// Exclusive end of the inserted range awaiting an entrance animation.
+        /// </summary>
+        private int mAnimatedInsertEnd = -1;
+
+        /// <summary>
         /// Gets the first currently materialized data index.
         /// </summary>
         public int FirstVisibleIndex => mFirstVisible;
@@ -115,13 +170,27 @@ namespace TristinWen.VirtualScroll
         {
             if (ReferenceEquals(mDataSource, dataSource))
             {
-                ReloadData(true);
+                SetDataSource(dataSource, EVirtualScrollPositionMode.KeepOffset);
                 return;
             }
 
-            RecycleAllActive();
+            SetDataSource(dataSource, EVirtualScrollPositionMode.Reset);
+        }
+
+        /// <summary>
+        /// Sets the data source and applies an explicit initial or replacement position strategy.
+        /// </summary>
+        /// <param name="dataSource">Data source used for item creation and binding.</param>
+        /// <param name="positionMode">Position strategy applied after initializing the source.</param>
+        public void SetDataSource(IVirtualScrollDataSource dataSource, EVirtualScrollPositionMode positionMode)
+        {
+            if (!ReferenceEquals(mDataSource, dataSource))
+            {
+                RecycleAllActive();
+            }
+
             mDataSource = dataSource;
-            ReloadData(false);
+            ReloadData(positionMode);
         }
 
         /// <summary>
@@ -130,7 +199,16 @@ namespace TristinWen.VirtualScroll
         /// <param name="keepScrollPosition">Whether to preserve the current main-axis offset.</param>
         public void ReloadData(bool keepScrollPosition = true)
         {
-            var oldOffset = keepScrollPosition ? GetScrollOffset() : 0f;
+            ReloadData(keepScrollPosition ? EVirtualScrollPositionMode.KeepOffset : EVirtualScrollPositionMode.Reset);
+        }
+
+        /// <summary>
+        /// Rebuilds sizes and visible items using an explicit scroll-position strategy.
+        /// </summary>
+        /// <param name="positionMode">Position strategy applied after rebuilding data.</param>
+        public void ReloadData(EVirtualScrollPositionMode positionMode)
+        {
+            CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
             RecycleAllActive();
 
             if (mDataSource is null || !content)
@@ -139,11 +217,116 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            mSizeIndex = SizeMode == EVirtualScrollSizeMode.Fixed ? new FixedSizeIndex(mDataSource.Count, FixedItemSize, Spacing) : new VariableSizeIndex(mDataSource, Spacing);
             ConfigureTransforms();
+            RebuildSizeIndex();
             UpdateContentSize();
-            SetScrollOffset(Mathf.Clamp(oldOffset, 0f, GetMaxScrollOffset()));
+            ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
             RefreshVisible(true);
+        }
+
+        /// <summary>
+        /// Applies a collection insertion after the data source has already inserted its items.
+        /// Existing visible views are remapped instead of rebuilt.
+        /// </summary>
+        /// <param name="index">First inserted data index.</param>
+        /// <param name="count">Number of inserted items.</param>
+        /// <param name="positionMode">Position strategy applied after insertion.</param>
+        /// <param name="animate">Whether visible inserted items may animate.</param>
+        public void NotifyItemsInserted(int index, int count, EVirtualScrollPositionMode positionMode = EVirtualScrollPositionMode.KeepAnchor, bool animate = true)
+        {
+            if (!CanApplyCollectionChange(count) || index < 0 || index > mSizeIndex.Count || mDataSource.Count != mSizeIndex.Count + count)
+            {
+                Debug.LogError("NotifyItemsInserted must be called after the data source inserts the same item count.", this);
+                return;
+            }
+
+            CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
+            RemapActiveForInsertion(index, count);
+            if (anchorIndex >= index)
+            {
+                anchorIndex += count;
+            }
+
+            RebuildSizeIndex();
+            UpdateContentSize();
+            ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
+            mAnimatedInsertFirst = animate && AnimateChanges ? index : -1;
+            mAnimatedInsertEnd = mAnimatedInsertFirst >= 0 ? index + count : -1;
+            RefreshVisible(true);
+            ClearPendingInsertionAnimation();
+        }
+
+        /// <summary>
+        /// Applies a collection removal after the data source has already removed its items.
+        /// Existing visible views are remapped instead of rebuilt.
+        /// </summary>
+        /// <param name="index">First removed data index.</param>
+        /// <param name="count">Number of removed items.</param>
+        /// <param name="positionMode">Position strategy applied after removal.</param>
+        /// <param name="animate">Whether visible removed items may animate.</param>
+        public void NotifyItemsRemoved(int index, int count, EVirtualScrollPositionMode positionMode = EVirtualScrollPositionMode.KeepAnchor, bool animate = true)
+        {
+            if (!CanApplyCollectionChange(count) || index < 0 || index + count > mSizeIndex.Count || mDataSource.Count != mSizeIndex.Count - count)
+            {
+                Debug.LogError("NotifyItemsRemoved must be called after the data source removes the same item count.", this);
+                return;
+            }
+
+            CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
+            RemapActiveForRemoval(index, count, animate && AnimateChanges);
+            if (anchorIndex >= index + count)
+            {
+                anchorIndex -= count;
+            }
+            else if (anchorIndex >= index)
+            {
+                anchorIndex = Mathf.Min(index, mDataSource.Count - 1);
+                anchorDelta = 0f;
+            }
+
+            RebuildSizeIndex();
+            UpdateContentSize();
+            ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
+            RefreshVisible(true);
+        }
+
+        /// <summary>
+        /// Applies a collection move after the data source has already moved one item.
+        /// </summary>
+        /// <param name="oldIndex">Previous item index.</param>
+        /// <param name="newIndex">New item index.</param>
+        /// <param name="positionMode">Position strategy applied after the move.</param>
+        /// <param name="animate">Whether the moved visible item may animate at its destination.</param>
+        public void NotifyItemMoved(int oldIndex, int newIndex, EVirtualScrollPositionMode positionMode = EVirtualScrollPositionMode.KeepAnchor, bool animate = true)
+        {
+            if (mDataSource is null || mSizeIndex is null || oldIndex < 0 || oldIndex >= mSizeIndex.Count || newIndex < 0 || newIndex >= mSizeIndex.Count || mDataSource.Count != mSizeIndex.Count)
+            {
+                Debug.LogError("NotifyItemMoved requires valid indices and an unchanged item count.", this);
+                return;
+            }
+
+            if (oldIndex == newIndex)
+            {
+                return;
+            }
+
+            CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
+            RemapActiveForMove(oldIndex, newIndex);
+            var movedSlotWasActive = mActiveSlots.ContainsKey(newIndex);
+            anchorIndex = RemapMovedIndex(anchorIndex, oldIndex, newIndex);
+            RebuildSizeIndex();
+            UpdateContentSize();
+            ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
+            mAnimatedInsertFirst = animate && AnimateChanges ? newIndex : -1;
+            mAnimatedInsertEnd = mAnimatedInsertFirst >= 0 ? newIndex + 1 : -1;
+            RefreshVisible(true);
+            if (movedSlotWasActive && mAnimatedInsertFirst >= 0 && mActiveSlots.TryGetValue(newIndex, out var movedSlot))
+            {
+                movedSlot.AnimationVersion++;
+                StartCoroutine(AnimateInsertion(movedSlot, movedSlot.AnimationVersion));
+            }
+
+            ClearPendingInsertionAnimation();
         }
 
         /// <summary>
@@ -273,10 +456,202 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         protected override void OnDestroy()
         {
+            StopAllCoroutines();
             RecycleAllActive();
+            RecycleAnimatingRemovalSlots();
             mPools.Clear();
             mSlotPool.Clear();
             base.OnDestroy();
+        }
+
+        /// <summary>
+        /// Rebuilds the selected fixed, variable, grid, or masonry size index.
+        /// </summary>
+        private void RebuildSizeIndex()
+        {
+            var crossAxisCount = Mathf.Max(1, CrossAxisCount);
+            if (SizeMode == EVirtualScrollSizeMode.Fixed)
+            {
+                mSizeIndex = new FixedSizeIndex(mDataSource.Count, FixedItemSize, Spacing, crossAxisCount);
+            }
+            else if (crossAxisCount == 1)
+            {
+                mSizeIndex = new VariableSizeIndex(mDataSource, Spacing);
+            }
+            else
+            {
+                mSizeIndex = new MasonrySizeIndex(mDataSource, Spacing, crossAxisCount);
+            }
+        }
+
+        /// <summary>
+        /// Captures numeric offset and the current first-item anchor.
+        /// </summary>
+        /// <param name="offset">Current numeric scroll offset.</param>
+        /// <param name="anchorIndex">First visible anchor index.</param>
+        /// <param name="anchorDelta">Offset relative to the anchor start.</param>
+        private void CapturePosition(out float offset, out int anchorIndex, out float anchorDelta)
+        {
+            offset = GetScrollOffset();
+            anchorIndex = mSizeIndex is null || mSizeIndex.Count == 0 ? -1 : Mathf.Max(0, mSizeIndex.FindIndex(offset));
+            anchorDelta = anchorIndex < 0 ? 0f : offset - mSizeIndex.GetOffset(anchorIndex);
+        }
+
+        /// <summary>
+        /// Applies a requested scroll position after rebuilding layout data.
+        /// </summary>
+        /// <param name="positionMode">Requested position strategy.</param>
+        /// <param name="oldOffset">Previous numeric offset.</param>
+        /// <param name="anchorIndex">Mapped anchor index.</param>
+        /// <param name="anchorDelta">Viewport-relative anchor offset.</param>
+        private void ApplyPositionMode(EVirtualScrollPositionMode positionMode, float oldOffset, int anchorIndex, float anchorDelta)
+        {
+            var offset = 0f;
+            if (positionMode == EVirtualScrollPositionMode.KeepOffset)
+            {
+                offset = oldOffset;
+            }
+            else if (positionMode == EVirtualScrollPositionMode.KeepAnchor && mSizeIndex.Count > 0)
+            {
+                var validAnchor = Mathf.Clamp(anchorIndex, 0, mSizeIndex.Count - 1);
+                offset = mSizeIndex.GetOffset(validAnchor) + anchorDelta;
+            }
+            else if (positionMode == EVirtualScrollPositionMode.StickToEnd)
+            {
+                offset = GetMaxScrollOffset();
+            }
+
+            SetScrollOffset(Mathf.Clamp(offset, 0f, GetMaxScrollOffset()));
+        }
+
+        /// <summary>
+        /// Validates shared collection-change preconditions.
+        /// </summary>
+        /// <param name="count">Changed item count.</param>
+        /// <returns>True when collection state can be updated incrementally.</returns>
+        private bool CanApplyCollectionChange(int count)
+        {
+            return mDataSource != null && mSizeIndex != null && count > 0;
+        }
+
+        /// <summary>
+        /// Shifts active logical items after an insertion.
+        /// </summary>
+        /// <param name="index">First inserted index.</param>
+        /// <param name="count">Inserted item count.</param>
+        private void RemapActiveForInsertion(int index, int count)
+        {
+            ExtractActiveSlotsForRemap();
+            foreach (var slot in mRemapSlots)
+            {
+                if (slot.Index >= index)
+                {
+                    slot.Index += count;
+                }
+
+                mActiveSlots.Add(slot.Index, slot);
+            }
+        }
+
+        /// <summary>
+        /// Removes active views in a deleted range and shifts later logical items.
+        /// </summary>
+        /// <param name="index">First removed index.</param>
+        /// <param name="count">Removed item count.</param>
+        /// <param name="animate">Whether visible removed items animate before pooling.</param>
+        private void RemapActiveForRemoval(int index, int count, bool animate)
+        {
+            var endIndex = index + count;
+            ExtractActiveSlotsForRemap();
+            foreach (var slot in mRemapSlots)
+            {
+                if (slot.Index >= index && slot.Index < endIndex)
+                {
+                    mDataSource.UnbindItem(slot.Item, slot.Index);
+                    if (animate)
+                    {
+                        StartRemovalAnimation(slot);
+                    }
+                    else
+                    {
+                        PoolDetachedSlot(slot);
+                    }
+
+                    continue;
+                }
+
+                if (slot.Index >= endIndex)
+                {
+                    slot.Index -= count;
+                }
+
+                mActiveSlots.Add(slot.Index, slot);
+            }
+        }
+
+        /// <summary>
+        /// Remaps active logical items after one collection item moves.
+        /// </summary>
+        /// <param name="oldIndex">Previous item index.</param>
+        /// <param name="newIndex">New item index.</param>
+        private void RemapActiveForMove(int oldIndex, int newIndex)
+        {
+            ExtractActiveSlotsForRemap();
+            foreach (var slot in mRemapSlots)
+            {
+                slot.Index = RemapMovedIndex(slot.Index, oldIndex, newIndex);
+                mActiveSlots.Add(slot.Index, slot);
+            }
+        }
+
+        /// <summary>
+        /// Extracts every active slot into a reusable remapping buffer.
+        /// </summary>
+        private void ExtractActiveSlotsForRemap()
+        {
+            mRemapSlots.Clear();
+            foreach (var pair in mActiveSlots)
+            {
+                mRemapSlots.Add(pair.Value);
+            }
+
+            mActiveSlots.Clear();
+        }
+
+        /// <summary>
+        /// Maps an index through a single collection move.
+        /// </summary>
+        /// <param name="index">Index to map.</param>
+        /// <param name="oldIndex">Previous moved index.</param>
+        /// <param name="newIndex">New moved index.</param>
+        /// <returns>Mapped index.</returns>
+        private static int RemapMovedIndex(int index, int oldIndex, int newIndex)
+        {
+            if (index == oldIndex)
+            {
+                return newIndex;
+            }
+
+            if (oldIndex < newIndex && index > oldIndex && index <= newIndex)
+            {
+                return index - 1;
+            }
+
+            if (oldIndex > newIndex && index >= newIndex && index < oldIndex)
+            {
+                return index + 1;
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// Clears the one-refresh insertion animation marker.
+        /// </summary>
+        private void ClearPendingInsertionAnimation()
+        {
+            mAnimatedInsertFirst = -1;
+            mAnimatedInsertEnd = -1;
         }
 
         /// <summary>
@@ -309,15 +684,24 @@ namespace TristinWen.VirtualScroll
             }
 
             var scrollOffset = Mathf.Clamp(GetScrollOffset(), 0f, Mathf.Max(0f, mSizeIndex.TotalSize));
-            var first = Mathf.Max(0, mSizeIndex.FindIndex(scrollOffset) - Overscan);
-            var last = Mathf.Min(mSizeIndex.Count - 1, mSizeIndex.FindIndex(scrollOffset + GetViewportSize()) + Overscan);
-            if (!forcePosition && first == mFirstVisible && last == mLastVisible)
+            mSizeIndex.CollectVisibleIndices(scrollOffset, scrollOffset + GetViewportSize(), Overscan, mDesiredIndices);
+            mDesiredIndexSet.Clear();
+            var first = mSizeIndex.Count;
+            var last = -1;
+            foreach (var index in mDesiredIndices)
+            {
+                mDesiredIndexSet.Add(index);
+                first = Mathf.Min(first, index);
+                last = Mathf.Max(last, index);
+            }
+
+            if (!forcePosition && IsDesiredSetActive())
             {
                 return;
             }
 
-            RecycleOutsideRange(first, last);
-            for (var index = first; index <= last; index++)
+            RecycleOutsideDesiredSet();
+            foreach (var index in mDesiredIndices)
             {
                 if (!mActiveSlots.ContainsKey(index))
                 {
@@ -359,9 +743,14 @@ namespace TristinWen.VirtualScroll
             slot.Item = item;
             slot.Index = index;
             slot.ItemType = itemType;
+            slot.AnimationVersion++;
             mActiveSlots.Add(index, slot);
             PositionSlot(slot);
             mDataSource.BindItem(item, index);
+            if (index >= mAnimatedInsertFirst && index < mAnimatedInsertEnd)
+            {
+                StartCoroutine(AnimateInsertion(slot, slot.AnimationVersion));
+            }
         }
 
         /// <summary>
@@ -388,31 +777,54 @@ namespace TristinWen.VirtualScroll
         {
             var offset = mSizeIndex.GetOffset(slot.Index);
             var size = mSizeIndex.GetSize(slot.Index);
+            var crossAxisCount = Mathf.Max(1, mSizeIndex.CrossAxisCount);
+            var crossAxisSize = Mathf.Max(0.01f, (GetViewportCrossAxisSize() - (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing)) / crossAxisCount);
+            var crossOffset = mSizeIndex.GetCrossAxisIndex(slot.Index) * (crossAxisSize + Mathf.Max(0f, CrossAxisSpacing));
             if (Direction == EVirtualScrollDirection.Vertical)
             {
-                slot.Item.anchoredPosition = new Vector2(0f, -offset);
+                slot.Item.anchoredPosition = new Vector2(crossOffset, -offset);
                 slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, mResolvedViewport.rect.width);
+                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, crossAxisSize);
             }
             else
             {
-                slot.Item.anchoredPosition = new Vector2(offset, 0f);
+                slot.Item.anchoredPosition = new Vector2(offset, -crossOffset);
                 slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, mResolvedViewport.rect.height);
+                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, crossAxisSize);
             }
         }
 
         /// <summary>
-        /// Recycles active slots outside a desired range.
+        /// Gets whether every desired index is already active and no extra slot remains.
         /// </summary>
-        /// <param name="first">Inclusive first desired index.</param>
-        /// <param name="last">Inclusive last desired index.</param>
-        private void RecycleOutsideRange(int first, int last)
+        /// <returns>True when the active set matches the desired set.</returns>
+        private bool IsDesiredSetActive()
+        {
+            if (mDesiredIndexSet.Count != mActiveSlots.Count)
+            {
+                return false;
+            }
+
+            foreach (var index in mDesiredIndices)
+            {
+                if (!mActiveSlots.ContainsKey(index))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Recycles active slots outside the desired visibility set.
+        /// </summary>
+        private void RecycleOutsideDesiredSet()
         {
             mRecycleIndices.Clear();
             foreach (var pair in mActiveSlots)
             {
-                if (pair.Key < first || pair.Key > last)
+                if (!mDesiredIndexSet.Contains(pair.Key))
                 {
                     mRecycleIndices.Add(pair.Key);
                 }
@@ -456,6 +868,16 @@ namespace TristinWen.VirtualScroll
             }
 
             mDataSource?.UnbindItem(slot.Item, index);
+            PoolDetachedSlot(slot);
+        }
+
+        /// <summary>
+        /// Returns an already-unbound detached slot to its typed pool.
+        /// </summary>
+        /// <param name="slot">Detached slot.</param>
+        private void PoolDetachedSlot(VirtualScrollSlot slot)
+        {
+            ResetAnimatedItem(slot);
             slot.Item.gameObject.SetActive(false);
             if (!mPools.TryGetValue(slot.ItemType, out var pool))
             {
@@ -467,7 +889,148 @@ namespace TristinWen.VirtualScroll
             slot.Item = null;
             slot.Index = -1;
             slot.ItemType = 0;
+            slot.CanvasGroup = null;
+            slot.AnimationVersion++;
+            slot.RestingScale = Vector3.one;
+            slot.RestingAlpha = 1f;
             mSlotPool.Push(slot);
+        }
+
+        /// <summary>
+        /// Starts an exit animation for an already-unbound visible slot.
+        /// </summary>
+        /// <param name="slot">Detached slot to animate.</param>
+        private void StartRemovalAnimation(VirtualScrollSlot slot)
+        {
+            PrepareAnimatedItem(slot);
+            slot.AnimationVersion++;
+            mAnimatingRemovalSlots.Add(slot);
+            StartCoroutine(AnimateRemoval(slot, slot.AnimationVersion));
+        }
+
+        /// <summary>
+        /// Animates a newly visible inserted item.
+        /// </summary>
+        /// <param name="slot">Active inserted slot.</param>
+        /// <param name="version">Binding version used to reject stale coroutines.</param>
+        /// <returns>Animation enumerator.</returns>
+        private IEnumerator AnimateInsertion(VirtualScrollSlot slot, int version)
+        {
+            PrepareAnimatedItem(slot);
+            var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                if (!IsActiveAnimationCurrent(slot, version))
+                {
+                    yield break;
+                }
+
+                elapsed += Time.unscaledDeltaTime;
+                var progress = Mathf.Clamp01(elapsed / duration);
+                slot.Item.localScale = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
+                slot.CanvasGroup.alpha = Mathf.Lerp(0f, slot.RestingAlpha, progress);
+                yield return null;
+            }
+
+            if (IsActiveAnimationCurrent(slot, version))
+            {
+                ResetAnimatedItem(slot);
+            }
+        }
+
+        /// <summary>
+        /// Animates an unbound removed item before returning it to the pool.
+        /// </summary>
+        /// <param name="slot">Detached removed slot.</param>
+        /// <param name="version">Animation version used to reject stale coroutines.</param>
+        /// <returns>Animation enumerator.</returns>
+        private IEnumerator AnimateRemoval(VirtualScrollSlot slot, int version)
+        {
+            var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                if (slot.AnimationVersion != version || !mAnimatingRemovalSlots.Contains(slot))
+                {
+                    yield break;
+                }
+
+                elapsed += Time.unscaledDeltaTime;
+                var progress = Mathf.Clamp01(elapsed / duration);
+                slot.Item.localScale = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
+                slot.CanvasGroup.alpha = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
+                yield return null;
+            }
+
+            if (slot.AnimationVersion == version && mAnimatingRemovalSlots.Remove(slot))
+            {
+                ResetAnimatedItem(slot);
+                PoolDetachedSlot(slot);
+            }
+        }
+
+        /// <summary>
+        /// Caches or creates animation state for a slot.
+        /// </summary>
+        /// <param name="slot">Slot to prepare.</param>
+        private static void PrepareAnimatedItem(VirtualScrollSlot slot)
+        {
+            if (!slot.CanvasGroup)
+            {
+                slot.CanvasGroup = slot.Item.GetComponent<CanvasGroup>();
+                if (!slot.CanvasGroup)
+                {
+                    slot.CanvasGroup = slot.Item.gameObject.AddComponent<CanvasGroup>();
+                }
+            }
+
+            slot.RestingScale = slot.Item.localScale;
+            slot.RestingAlpha = slot.CanvasGroup.alpha;
+        }
+
+        /// <summary>
+        /// Restores item presentation after an animation.
+        /// </summary>
+        /// <param name="slot">Animated slot.</param>
+        private static void ResetAnimatedItem(VirtualScrollSlot slot)
+        {
+            if (!slot.Item)
+            {
+                return;
+            }
+
+            if (slot.CanvasGroup)
+            {
+                slot.Item.localScale = slot.RestingScale;
+                slot.CanvasGroup.alpha = slot.RestingAlpha;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether an insertion animation still owns the same active binding.
+        /// </summary>
+        /// <param name="slot">Animated active slot.</param>
+        /// <param name="version">Expected binding version.</param>
+        /// <returns>True when the binding is unchanged.</returns>
+        private bool IsActiveAnimationCurrent(VirtualScrollSlot slot, int version)
+        {
+            return slot.AnimationVersion == version && mActiveSlots.TryGetValue(slot.Index, out var activeSlot) && ReferenceEquals(activeSlot, slot);
+        }
+
+        /// <summary>
+        /// Pools every detached removal slot during destruction.
+        /// </summary>
+        private void RecycleAnimatingRemovalSlots()
+        {
+            for (var i = mAnimatingRemovalSlots.Count - 1; i >= 0; i--)
+            {
+                var slot = mAnimatingRemovalSlots[i];
+                ResetAnimatedItem(slot);
+                PoolDetachedSlot(slot);
+            }
+
+            mAnimatingRemovalSlots.Clear();
         }
 
         /// <summary>
@@ -571,6 +1134,20 @@ namespace TristinWen.VirtualScroll
             }
 
             return Direction == EVirtualScrollDirection.Vertical ? mResolvedViewport.rect.height : mResolvedViewport.rect.width;
+        }
+
+        /// <summary>
+        /// Gets the viewport size perpendicular to the scrolling axis.
+        /// </summary>
+        /// <returns>Cross-axis viewport size.</returns>
+        private float GetViewportCrossAxisSize()
+        {
+            if (!mResolvedViewport)
+            {
+                return 0f;
+            }
+
+            return Direction == EVirtualScrollDirection.Vertical ? mResolvedViewport.rect.width : mResolvedViewport.rect.height;
         }
 
         /// <summary>

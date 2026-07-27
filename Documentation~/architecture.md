@@ -6,9 +6,11 @@
 - `IVirtualSizeIndex` maps indices to offsets.
 - `VirtualScrollView` owns viewport range calculation, positioning, and typed pools.
 
-Fixed-size lists use direct arithmetic. Variable-size lists use a Fenwick tree so distant jumps and measured-size changes do not scan the full collection.
+Fixed-size lists and grids use direct arithmetic. Variable-size single-lane lists use a Fenwick tree so distant jumps and measured-size changes do not scan the full collection. Variable-size multi-lane lists keep lane-local sorted indices so visibility lookup remains proportional to visible items and lane count.
 
 The scrolling hot path first calculates the desired visible range. If that range has not changed, it returns immediately. When it changes, only views outside the range are recycled and only missing indices are materialized.
+
+Collection notifications remap active slot indices before rebuilding layout metadata. This preserves views representing unchanged logical items. Anchor refresh mode stores the first visible logical item and its viewport-relative offset, then restores both after insertion, removal, or movement.
 
 ## Item ownership
 

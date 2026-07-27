@@ -7,11 +7,14 @@
 - Vertical and horizontal lists.
 - O(1) visible-index lookup for fixed-size items.
 - O(log N) lookup and size updates for variable-size items using a Fenwick tree.
-- Uniform spacing for fixed and variable items.
+- Fixed-size multi-lane grids and variable-size masonry layouts.
+- Independent uniform main-axis and cross-axis spacing.
 - Typed item pools for lists with multiple visual templates.
 - Runtime item creation through a small data-source interface.
 - No LINQ or per-scroll-frame collection allocation in the virtualization path.
-- Refresh, range refresh, scroll-to-index, and measured-size update APIs.
+- Reset, numeric-offset, data-anchor, and end-pinned refresh strategies.
+- Incremental insertion, removal, move, range refresh, scroll-to-index, and measured-size update APIs.
+- Optional insertion and removal animations using unscaled time.
 - Scroll-anchor preservation when a variable item changes size.
 
 ## Requirements
@@ -40,6 +43,15 @@ https://github.com/TristinOrg/VirtualScroll.git#v1.0.0
 3. Keep the content reference assigned. Viewport may be assigned explicitly or left empty to use the component RectTransform.
 4. Do not add a `LayoutGroup` or `ContentSizeFitter` to the content. `VirtualScrollView` owns item positions and content size.
 5. Implement `IVirtualScrollDataSource` and call `SetDataSource` after your data is ready.
+
+Initialization can explicitly select its starting position behavior:
+
+```csharp
+ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.Reset);
+ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.KeepOffset);
+ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.KeepAnchor);
+ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.StickToEnd);
+```
 
 ```csharp
 using TristinWen.VirtualScroll;
@@ -102,11 +114,51 @@ The size index updates in O(log N), and the list preserves the first visible ite
 
 ```csharp
 ScrollView.ReloadData();
+ScrollView.ReloadData(EVirtualScrollPositionMode.Reset);
+ScrollView.ReloadData(EVirtualScrollPositionMode.KeepAnchor);
+ScrollView.ReloadData(EVirtualScrollPositionMode.StickToEnd);
 ScrollView.RefreshItem(index);
 ScrollView.RefreshRange(startIndex, count);
 ScrollView.NotifyItemSizeChanged(index, newSize);
 ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.Center);
 ```
+
+The legacy convenience overload remains available:
+
+```csharp
+ScrollView.ReloadData(true);  // Keep the numeric content offset.
+ScrollView.ReloadData(false); // Reset to the beginning.
+```
+
+## Collection changes
+
+Mutate your backing collection first, then notify the scroll view with the same indices and counts:
+
+```csharp
+Mails.InsertRange(index, incomingMails);
+ScrollView.NotifyItemsInserted(index, incomingMails.Count);
+
+Mails.RemoveRange(index, count);
+ScrollView.NotifyItemsRemoved(index, count);
+
+var movedMail = Mails[oldIndex];
+Mails.RemoveAt(oldIndex);
+Mails.Insert(newIndex, movedMail);
+ScrollView.NotifyItemMoved(oldIndex, newIndex);
+```
+
+Visible views representing unchanged logical items are remapped and retained. `KeepAnchor` is the default for collection changes, so inserting older mail above the viewport does not move the reader's current mail.
+
+Set `AnimateChanges` to enable opacity and scale animations for visible insertions and removals. Animation is optional and does not run in the normal scrolling path.
+
+## Grid and masonry layouts
+
+Set `CrossAxisCount` above one:
+
+- `SizeMode.Fixed` creates an equal-size grid.
+- `SizeMode.Variable` assigns equal-width items to the currently shortest lane, producing a masonry layout.
+- `Spacing` controls distance along the scrolling axis.
+- `CrossAxisSpacing` controls distance between lanes.
 
 ## Performance model
 
@@ -118,11 +170,11 @@ ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.Center);
 
 Actual frame time depends on item binding, text generation, shaders, and Canvas topology. Profile representative UI on target hardware before setting budgets.
 
-## Limitations in 1.0
+## Current scope
 
-- The first release supports one-dimensional lists. Variable-size grids and masonry layouts are not included.
-- Collection insert/remove operations currently use `ReloadData`; fine-grained collection diffs are planned.
-- Animated insertion and removal are not included.
+- Lanes use equal cross-axis widths; variable-width masonry items are not supported.
+- Insert and remove animations affect currently materialized items only, by design.
+- Data mutations must occur before their matching notification method is called.
 
 ## License
 
