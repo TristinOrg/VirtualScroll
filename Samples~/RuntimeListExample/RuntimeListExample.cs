@@ -28,9 +28,9 @@ namespace TristinWen.VirtualScroll.Sample
         public int ItemCount = 100000;
 
         /// <summary>
-        /// Font used by generated labels.
+        /// Cached built-in font shared by generated labels.
         /// </summary>
-        public Font Font;
+        private static Font sRuntimeFont;
 
         /// <summary>
         /// Gets the generated item count.
@@ -78,18 +78,45 @@ namespace TristinWen.VirtualScroll.Sample
         /// <returns>Created item RectTransform.</returns>
         public RectTransform CreateItem(int itemType, Transform parent)
         {
-            var itemObject = new GameObject("Virtual Item", typeof(RectTransform), typeof(Image), typeof(Text));
+            var itemObject = new GameObject("Virtual Item", typeof(RectTransform), typeof(Image), typeof(RuntimeListItem));
             var item = itemObject.transform as RectTransform;
             item.SetParent(parent, false);
             var image = itemObject.GetComponent<Image>();
             image.color = new Color(0.12f, 0.14f, 0.18f, 1f);
-            var label = itemObject.GetComponent<Text>();
-            label.font = Font;
+            var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var labelRect = labelObject.transform as RectTransform;
+            labelRect.SetParent(item, false);
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(12f, 0f);
+            labelRect.offsetMax = new Vector2(-12f, 0f);
+            var label = labelObject.GetComponent<Text>();
+            label.font = GetRuntimeFont();
             label.fontSize = 22;
             label.color = Color.white;
             label.alignment = TextAnchor.MiddleLeft;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            itemObject.GetComponent<RuntimeListItem>().Label = label;
             return item;
+        }
+
+        /// <summary>
+        /// Gets and caches Unity's built-in runtime font.
+        /// </summary>
+        /// <returns>Font suitable for a runtime uGUI Text component.</returns>
+        private static Font GetRuntimeFont()
+        {
+            if (sRuntimeFont)
+            {
+                return sRuntimeFont;
+            }
+
+#if UNITY_2022_2_OR_NEWER
+            sRuntimeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+#else
+            sRuntimeFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+#endif
+            return sRuntimeFont;
         }
 
         /// <summary>
@@ -99,7 +126,7 @@ namespace TristinWen.VirtualScroll.Sample
         /// <param name="index">Data index.</param>
         public void BindItem(RectTransform item, int index)
         {
-            var label = item.GetComponent<Text>();
+            var label = item.GetComponent<RuntimeListItem>().Label;
             label.text = $"  Item {index:N0} — variable content line {index % 5 + 1}";
         }
 
@@ -110,7 +137,7 @@ namespace TristinWen.VirtualScroll.Sample
         /// <param name="index">Previous data index.</param>
         public void UnbindItem(RectTransform item, int index)
         {
-            var label = item.GetComponent<Text>();
+            var label = item.GetComponent<RuntimeListItem>().Label;
             label.text = string.Empty;
         }
     }

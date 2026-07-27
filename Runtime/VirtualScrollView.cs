@@ -23,6 +23,7 @@ namespace TristinWen.VirtualScroll
         /// <summary>
         /// Main scrolling direction.
         /// </summary>
+        [Header("Virtual Layout")]
         public EVirtualScrollDirection Direction = EVirtualScrollDirection.Vertical;
 
         /// <summary>
@@ -62,8 +63,21 @@ namespace TristinWen.VirtualScroll
         public float CrossAxisSpacing;
 
         /// <summary>
+        /// Automatically captures and disables a supported LayoutGroup on the content transform.
+        /// </summary>
+        [Header("LayoutGroup Integration")]
+        public bool UseLayoutGroupSettings = true;
+
+        /// <summary>
+        /// Keeps <see cref="FixedItemSize"/> instead of using GridLayoutGroup cell size.
+        /// Variable-size mode always uses sizes supplied by the data source.
+        /// </summary>
+        public bool OverrideLayoutItemSize;
+
+        /// <summary>
         /// Enables scale and opacity animations for visible inserted and removed items.
         /// </summary>
+        [Header("Collection Animation")]
         public bool AnimateChanges;
 
         /// <summary>
@@ -73,15 +87,9 @@ namespace TristinWen.VirtualScroll
         public float ChangeAnimationDuration = 0.2f;
 
         /// <summary>
-        /// Automatically captures and disables a supported LayoutGroup on the content transform.
+        /// Captures authoring-time layout values outside the scrolling hot path.
         /// </summary>
-        public bool UseLayoutGroupSettings = true;
-
-        /// <summary>
-        /// Keeps <see cref="FixedItemSize"/> instead of using GridLayoutGroup cell size.
-        /// Variable-size mode always uses sizes supplied by the data source.
-        /// </summary>
-        public bool OverrideLayoutItemSize;
+        private readonly VirtualScrollLayoutCapture mLayoutCapture = new();
 
         /// <summary>
         /// Active views keyed by data index.
@@ -164,34 +172,9 @@ namespace TristinWen.VirtualScroll
         private int mAnimatedInsertEnd = -1;
 
         /// <summary>
-        /// Supported LayoutGroup captured from the content transform.
-        /// </summary>
-        private LayoutGroup mCapturedLayoutGroup;
-
-        /// <summary>
         /// Captured parameters used after the source LayoutGroup is disabled.
         /// </summary>
         private VirtualScrollLayoutSnapshot mLayoutSnapshot;
-
-        /// <summary>
-        /// Original enabled state restored when this component is destroyed.
-        /// </summary>
-        private bool mLayoutGroupWasEnabled;
-
-        /// <summary>
-        /// Content size fitter disabled while virtual layout owns content dimensions.
-        /// </summary>
-        private ContentSizeFitter mCapturedContentSizeFitter;
-
-        /// <summary>
-        /// Original content size fitter enabled state.
-        /// </summary>
-        private bool mContentSizeFitterWasEnabled;
-
-        /// <summary>
-        /// Whether automatic content layout capture has already run.
-        /// </summary>
-        private bool mLayoutCaptureCompleted;
 
         /// <summary>
         /// Gets the first currently materialized data index.
@@ -210,8 +193,8 @@ namespace TristinWen.VirtualScroll
         /// <param name="positionMode">Position strategy applied after recapturing layout.</param>
         public void RecaptureLayoutGroup(EVirtualScrollPositionMode positionMode = EVirtualScrollPositionMode.KeepAnchor)
         {
-            RestoreCapturedLayoutComponents();
-            mLayoutCaptureCompleted = false;
+            mLayoutCapture.Reset();
+            mLayoutSnapshot = null;
             CaptureAndDisableLayoutGroup();
             if (mDataSource != null)
             {
@@ -518,7 +501,7 @@ namespace TristinWen.VirtualScroll
             RecycleAnimatingRemovalSlots();
             mPools.Clear();
             mSlotPool.Clear();
-            RestoreCapturedLayoutComponents();
+            mLayoutCapture.Restore();
             base.OnDestroy();
         }
 
@@ -733,27 +716,23 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         private void CaptureAndDisableLayoutGroup()
         {
-            if (mLayoutCaptureCompleted || !UseLayoutGroupSettings || !content || !mResolvedViewport)
+            if (mLayoutCapture.IsCompleted || !UseLayoutGroupSettings || !content || !mResolvedViewport)
             {
                 return;
             }
 
-            mLayoutCaptureCompleted = true;
-            var layoutGroup = content.GetComponent<LayoutGroup>();
-            if (!layoutGroup)
-            {
-                return;
-            }
-
-            var snapshot = VirtualScrollLayoutSnapshot.Capture(layoutGroup, mResolvedViewport.rect.size);
+            var snapshot = mLayoutCapture.Capture(content, mResolvedViewport.rect.size);
             if (snapshot is null)
             {
-                Debug.LogWarning($"VirtualScrollView does not support automatic capture for {layoutGroup.GetType().Name}.", this);
+                var unsupportedLayoutGroup = mLayoutCapture.UnsupportedLayoutGroup;
+                if (unsupportedLayoutGroup)
+                {
+                    Debug.LogWarning($"VirtualScrollView does not support automatic capture for {unsupportedLayoutGroup.GetType().Name}.", this);
+                }
+
                 return;
             }
 
-            mCapturedLayoutGroup = layoutGroup;
-            mLayoutGroupWasEnabled = layoutGroup.enabled;
             mLayoutSnapshot = snapshot;
             Direction = snapshot.Direction;
             Spacing = snapshot.MainSpacing;
@@ -763,34 +742,6 @@ namespace TristinWen.VirtualScroll
             {
                 FixedItemSize = snapshot.FixedMainSize;
             }
-
-            layoutGroup.enabled = false;
-            mCapturedContentSizeFitter = content.GetComponent<ContentSizeFitter>();
-            if (mCapturedContentSizeFitter)
-            {
-                mContentSizeFitterWasEnabled = mCapturedContentSizeFitter.enabled;
-                mCapturedContentSizeFitter.enabled = false;
-            }
-        }
-
-        /// <summary>
-        /// Restores captured layout components to their original enabled state.
-        /// </summary>
-        private void RestoreCapturedLayoutComponents()
-        {
-            if (mCapturedLayoutGroup)
-            {
-                mCapturedLayoutGroup.enabled = mLayoutGroupWasEnabled;
-            }
-
-            if (mCapturedContentSizeFitter)
-            {
-                mCapturedContentSizeFitter.enabled = mContentSizeFitterWasEnabled;
-            }
-
-            mCapturedLayoutGroup = null;
-            mCapturedContentSizeFitter = null;
-            mLayoutSnapshot = null;
         }
 
         /// <summary>

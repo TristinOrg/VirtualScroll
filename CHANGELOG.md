@@ -10,6 +10,9 @@
 - Added grid and masonry EditMode coverage.
 - Added automatic capture and runtime disabling for vertical, horizontal, and grid LayoutGroups.
 - Added LayoutGroup padding, alignment, cell size, constraint, corner, and spacing integration.
+- Fixed the runtime sample creating mutually exclusive Image and Text components on one GameObject.
+- Removed manual sample font setup and use Unity's cached built-in runtime font automatically.
+- Extracted LayoutGroup component lifecycle ownership from VirtualScrollView's scrolling responsibilities.
 
 ## [1.0.0] - 2026-07-27
 
