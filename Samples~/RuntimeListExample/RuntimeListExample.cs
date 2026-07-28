@@ -24,7 +24,7 @@ namespace TristinWen.VirtualScroll.Sample
         /// <summary>
         /// Optional sample provider assigned to the scroll view at startup.
         /// </summary>
-        public ScaleFadeListAnimation AnimationProvider;
+        public MonoBehaviour AnimationProvider;
 
         /// <summary>
         /// Number of generated data items.

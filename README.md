@@ -176,6 +176,8 @@ Import **Runtime List Example** from Package Manager, then configure a GameObjec
 
 The complete provider is in `Samples~/RuntimeListExample/ScaleFadeListAnimation.cs`. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores scale and opacity before pooled reuse.
 
+`RuntimeListExample.AnimationProvider` accepts any `MonoBehaviour`. The assigned component must implement `IVirtualScrollAnimation`, so the same field can be used with the included sample, PrimeTween, DOTween, Animator, or a project-specific provider.
+
 The example insertion and removal methods deliberately change `ItemCount` before notifying the scroll view:
 
 ```csharp
@@ -199,6 +201,8 @@ public void RemoveVisibleItem()
 ### Implement a custom provider
 
 Implement `IVirtualScrollAnimation` when a project wants DOTween, PrimeTween, Animator, or its own update system. Assign the implementing `MonoBehaviour` to `VirtualScrollView.AnimationProvider` in the Inspector:
+
+Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views remain materialized and render above replacement views until `context.Complete()` is called.
 
 ```csharp
 public sealed class CustomListAnimation : MonoBehaviour, IVirtualScrollAnimation

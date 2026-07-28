@@ -259,6 +259,46 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies final visibility layout does not overwrite provider-owned insertion presentation.
+        /// </summary>
+        [Test]
+        public void InsertionLayoutPreservesProviderPosition()
+        {
+            var scrollView             = CreateScrollView();
+            var animationProvider      = new VirtualScrollAnimationTestProvider { ChangePosition = true };
+            var dataSource             = new VirtualScrollViewTestDataSource();
+            scrollView.AnimateChanges = true;
+            scrollView.Animation      = animationProvider;
+            scrollView.SetDataSource(dataSource);
+
+            dataSource.Count = 1;
+            scrollView.NotifyItemsInserted(0, 1);
+
+            Assert.AreEqual(VirtualScrollAnimationTestProvider.PresentationPosition, animationProvider.LastContext.Item.anchoredPosition);
+        }
+
+        /// <summary>
+        /// Verifies detached removal views render above replacement views until completion.
+        /// </summary>
+        [Test]
+        public void RemovalAnimationStaysAboveReplacementItems()
+        {
+            var scrollView             = CreateScrollView();
+            var animationProvider      = new VirtualScrollAnimationTestProvider();
+            var dataSource             = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.AnimateChanges = true;
+            scrollView.Animation      = animationProvider;
+            scrollView.SetDataSource(dataSource);
+
+            dataSource.Count--;
+            scrollView.NotifyItemsRemoved(0, 1, EVirtualScrollPositionMode.KeepOffset);
+
+            var removedItem = animationProvider.LastContext.Item;
+            Assert.AreEqual(EVirtualScrollAnimationType.Remove, animationProvider.LastAnimationType);
+            Assert.AreEqual(scrollView.content.childCount - 1, removedItem.GetSiblingIndex());
+        }
+
+        /// <summary>
         /// Creates a vertical VirtualScrollView with a 300-by-300 viewport.
         /// </summary>
         /// <returns>Configured scroll view.</returns>

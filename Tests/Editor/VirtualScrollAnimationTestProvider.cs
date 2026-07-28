@@ -13,6 +13,11 @@ namespace TristinWen.VirtualScroll.Tests
     public sealed class VirtualScrollAnimationTestProvider : IVirtualScrollAnimation
     {
         /// <summary>
+        /// Presentation position applied when playback begins.
+        /// </summary>
+        public static readonly UnityEngine.Vector2 PresentationPosition = new(777f, -333f);
+
+        /// <summary>
         /// Gets the number of play callbacks.
         /// </summary>
         public int PlayCount { get; private set; }
@@ -33,6 +38,11 @@ namespace TristinWen.VirtualScroll.Tests
         public VirtualScrollAnimationContext LastContext { get; private set; }
 
         /// <summary>
+        /// Gets or sets whether playback changes the item position to verify presentation ownership.
+        /// </summary>
+        public bool ChangePosition { get; set; }
+
+        /// <summary>
         /// Records provider-owned playback.
         /// </summary>
         /// <param name="context">Animation context.</param>
@@ -41,6 +51,10 @@ namespace TristinWen.VirtualScroll.Tests
             PlayCount++;
             LastAnimationType = context.AnimationType;
             LastContext       = context;
+            if (ChangePosition)
+            {
+                context.Item.anchoredPosition = PresentationPosition;
+            }
         }
 
         /// <summary>

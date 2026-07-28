@@ -834,6 +834,7 @@ namespace TristinWen.VirtualScroll
             }
 
             RecycleOutsideDesiredSet();
+            PositionActiveItems();
             foreach (var index in mDesiredIndices)
             {
                 if (!mActiveSlots.ContainsKey(index))
@@ -844,7 +845,21 @@ namespace TristinWen.VirtualScroll
 
             mFirstVisible = first;
             mLastVisible  = last;
-            PositionActiveItems();
+            BringAnimatingRemovalSlotsToFront();
+        }
+
+        /// <summary>
+        /// Keeps detached removal views above replacement views until their exit animations complete.
+        /// </summary>
+        private void BringAnimatingRemovalSlotsToFront()
+        {
+            foreach (var slot in mAnimatingRemovalSlots)
+            {
+                if (slot.Item)
+                {
+                    slot.Item.SetAsLastSibling();
+                }
+            }
         }
 
         /// <summary>
