@@ -202,7 +202,7 @@ public void RemoveVisibleItem()
 
 Implement `IVirtualScrollAnimation` when a project wants DOTween, PrimeTween, Animator, or its own update system. Assign the implementing `MonoBehaviour` to `VirtualScrollView.AnimationProvider` in the Inspector:
 
-Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views remain materialized and render above replacement views until `context.Complete()` is called.
+Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views retain their existing binding, remain materialized, and render above replacement views until `context.Complete()` is called. `UnbindItem` runs only after the removal animation completes.
 
 ```csharp
 public sealed class CustomListAnimation : MonoBehaviour, IVirtualScrollAnimation

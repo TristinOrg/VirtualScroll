@@ -249,12 +249,14 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.AreEqual(1, animationProvider.CancelCount);
             Assert.AreEqual(EVirtualScrollAnimationType.Remove, animationProvider.LastAnimationType);
             var removedItem = animationProvider.LastContext.Item;
+            Assert.AreEqual("Test Item 0", removedItem.name);
 
             staleContext.Complete();
             Assert.IsTrue(removedItem.gameObject.activeSelf);
             animationProvider.CompleteLast();
 
             Assert.AreEqual(1, animationProvider.CancelCount);
+            Assert.AreEqual("Pooled Test Item", removedItem.name);
             Assert.IsFalse(removedItem.gameObject.activeSelf);
         }
 

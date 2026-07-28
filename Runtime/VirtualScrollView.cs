@@ -657,13 +657,13 @@ namespace TristinWen.VirtualScroll
             {
                 if (slot.Index >= index && slot.Index < endIndex)
                 {
-                    mDataSource.UnbindItem(slot.Item, slot.Index);
                     if (animate)
                     {
                         StartRemovalAnimation(slot);
                     }
                     else
                     {
+                        mDataSource.UnbindItem(slot.Item, slot.Index);
                         PoolDetachedSlot(slot);
                     }
 
@@ -1219,8 +1219,18 @@ namespace TristinWen.VirtualScroll
             slot.AnimationElapsed = 0f;
             if (!canceled && animationType == EVirtualScrollAnimationType.Remove)
             {
-                PoolDetachedSlot(slot);
+                UnbindAndPoolRemovalSlot(slot);
             }
+        }
+
+        /// <summary>
+        /// Releases the retained removal presentation and returns its detached view to the pool.
+        /// </summary>
+        /// <param name="slot">Detached removal slot whose animation has ended.</param>
+        private void UnbindAndPoolRemovalSlot(VirtualScrollSlot slot)
+        {
+            mDataSource?.UnbindItem(slot.Item, slot.Index);
+            PoolDetachedSlot(slot);
         }
 
         /// <summary>
@@ -1281,7 +1291,7 @@ namespace TristinWen.VirtualScroll
             {
                 var slot = mAnimatingRemovalSlots[mAnimatingRemovalSlots.Count - 1];
                 CompleteAnimation(slot, true);
-                PoolDetachedSlot(slot);
+                UnbindAndPoolRemovalSlot(slot);
             }
         }
 
