@@ -59,17 +59,22 @@ namespace TristinWen.VirtualScroll.Sample
             }
 
             ScrollView.AnimateChanges = true;
-            if (!AnimationProvider)
+            ScrollView.ChangeAnimationDuration = AnimationDuration;
+            if (!ScrollView.AnimationProvider && AnimationProvider)
             {
-                AnimationProvider = GetComponent<SlideListAnimation>();
-                if (!AnimationProvider)
+                ScrollView.AnimationProvider = AnimationProvider;
+            }
+            else if (!ScrollView.AnimationProvider)
+            {
+                var defaultAnimation = GetComponent<SlideListAnimation>();
+                if (!defaultAnimation)
                 {
-                    AnimationProvider = gameObject.AddComponent<SlideListAnimation>();
+                    defaultAnimation = gameObject.AddComponent<SlideListAnimation>();
                 }
+
+                ScrollView.AnimationProvider = defaultAnimation;
             }
 
-            ScrollView.AnimationProvider = AnimationProvider;
-            ScrollView.ChangeAnimationDuration = AnimationDuration;
             ScrollView.SetDataSource(this);
         }
 
@@ -84,7 +89,7 @@ namespace TristinWen.VirtualScroll.Sample
                 return;
             }
 
-            var index = Mathf.Max(0, ScrollView.FirstVisibleIndex);
+            var index = Mathf.Max(0, ScrollView.FirstViewportIndex);
             ItemCount++;
             ScrollView.NotifyItemsInserted(index, 1, EVirtualScrollPositionMode.KeepOffset);
         }
@@ -100,7 +105,7 @@ namespace TristinWen.VirtualScroll.Sample
                 return;
             }
 
-            var index = Mathf.Clamp(ScrollView.FirstVisibleIndex, 0, ItemCount - 1);
+            var index = Mathf.Clamp(ScrollView.FirstViewportIndex, 0, ItemCount - 1);
             ItemCount--;
             ScrollView.NotifyItemsRemoved(index, 1, EVirtualScrollPositionMode.KeepOffset);
         }

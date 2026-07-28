@@ -8,6 +8,7 @@
 
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UI;
 
 namespace TristinWen.VirtualScroll.Tests
@@ -222,6 +223,22 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies viewport lookup excludes materialized overscan items.
+        /// </summary>
+        [Test]
+        public void FirstViewportIndexExcludesOverscan()
+        {
+            var scrollView      = CreateScrollView();
+            var dataSource      = new VirtualScrollViewTestDataSource { Count = 100 };
+            scrollView.Overscan = 1;
+            scrollView.SetDataSource(dataSource);
+            scrollView.ScrollToIndex(20);
+
+            Assert.AreEqual(19, scrollView.FirstMaterializedIndex);
+            Assert.AreEqual(20, scrollView.FirstViewportIndex);
+        }
+
+        /// <summary>
         /// Verifies a custom provider receives insert, interruption, and removal lifecycle callbacks.
         /// </summary>
         [Test]
@@ -258,6 +275,27 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.AreEqual(1, animationProvider.CancelCount);
             Assert.AreEqual("Pooled Test Item", removedItem.name);
             Assert.IsFalse(removedItem.gameObject.activeSelf);
+        }
+
+        /// <summary>
+        /// Verifies an invalid configured provider skips animation instead of using built-in presentation.
+        /// </summary>
+        [Test]
+        public void InvalidAnimationProviderDoesNotFallBackToBuiltInAnimation()
+        {
+            var scrollView                     = CreateScrollView();
+            var dataSource                     = new VirtualScrollViewTestDataSource();
+            scrollView.AnimateChanges          = true;
+            scrollView.AnimationProvider       = scrollView;
+            scrollView.SetDataSource(dataSource);
+            LogAssert.Expect(LogType.Error, "Animation provider VirtualScrollView must implement IVirtualScrollAnimation. Collection animation was skipped.");
+
+            dataSource.Count = 1;
+            scrollView.NotifyItemsInserted(0, 1);
+
+            var item = scrollView.content.GetChild(0) as RectTransform;
+            Assert.IsNull(item.GetComponent<CanvasGroup>());
+            Assert.AreEqual(Vector3.one, item.localScale);
         }
 
         /// <summary>

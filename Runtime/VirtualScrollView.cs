@@ -211,12 +211,39 @@ namespace TristinWen.VirtualScroll
         /// <summary>
         /// Gets the first currently materialized data index.
         /// </summary>
-        public int FirstVisibleIndex => mFirstVisible;
+        public int FirstMaterializedIndex => mFirstVisible;
 
         /// <summary>
         /// Gets the last currently materialized data index.
         /// </summary>
-        public int LastVisibleIndex => mLastVisible;
+        public int LastMaterializedIndex => mLastVisible;
+
+        /// <summary>
+        /// Gets the first data index intersecting the viewport without overscan.
+        /// </summary>
+        public int FirstViewportIndex
+        {
+            get
+            {
+                if (mSizeIndex is null || mSizeIndex.Count == 0)
+                {
+                    return -1;
+                }
+
+                var offset = Mathf.Max(0f, GetScrollOffset() - GetMainStartPadding());
+                return Mathf.Clamp(mSizeIndex.FindIndex(offset + 0.001f), 0, mSizeIndex.Count - 1);
+            }
+        }
+
+        /// <summary>
+        /// Gets the first currently materialized data index.
+        /// </summary>
+        public int FirstVisibleIndex => FirstMaterializedIndex;
+
+        /// <summary>
+        /// Gets the last currently materialized data index.
+        /// </summary>
+        public int LastVisibleIndex => LastMaterializedIndex;
 
         /// <summary>
         /// Gets or sets the legacy fixed main-axis size name.
@@ -1085,7 +1112,7 @@ namespace TristinWen.VirtualScroll
         private void BeginAnimation(VirtualScrollSlot slot, EVirtualScrollAnimationType animationType)
         {
             var duration          = Mathf.Max(0.01f, ChangeAnimationDuration);
-            slot.Animation        = ResolveAnimationProvider();
+            slot.Animation        = ResolveAnimationProvider(out var useBuiltInAnimation);
             slot.AnimationId      = GetNextAnimationId();
             slot.AnimationContext = new VirtualScrollAnimationContext(slot.Item, animationType, duration, slot.AnimationId, this);
             slot.IsAnimating      = true;
@@ -1099,6 +1126,12 @@ namespace TristinWen.VirtualScroll
             if (slot.Animation != null)
             {
                 slot.Animation.Play(slot.AnimationContext);
+                return;
+            }
+
+            if (!useBuiltInAnimation)
+            {
+                CompleteAnimation(slot, false);
                 return;
             }
 
@@ -1128,9 +1161,11 @@ namespace TristinWen.VirtualScroll
         /// <summary>
         /// Resolves the runtime or Inspector animation provider outside the scrolling hot path.
         /// </summary>
-        /// <returns>Configured provider, or null to use built-in presentation.</returns>
-        private IVirtualScrollAnimation ResolveAnimationProvider()
+        /// <param name="useBuiltInAnimation">Whether absence of a provider requests built-in presentation.</param>
+        /// <returns>Configured provider, or null when built-in or disabled presentation should be used.</returns>
+        private IVirtualScrollAnimation ResolveAnimationProvider(out bool useBuiltInAnimation)
         {
+            useBuiltInAnimation = false;
             if (Animation != null)
             {
                 return Animation;
@@ -1138,13 +1173,14 @@ namespace TristinWen.VirtualScroll
 
             if (!AnimationProvider)
             {
+                useBuiltInAnimation = true;
                 return null;
             }
 
             var animation = AnimationProvider as IVirtualScrollAnimation;
             if (animation == null)
             {
-                Debug.LogError("AnimationProvider must implement IVirtualScrollAnimation.", this);
+                Debug.LogError($"Animation provider {AnimationProvider.GetType().Name} must implement {nameof(IVirtualScrollAnimation)}. Collection animation was skipped.", AnimationProvider);
             }
 
             return animation;

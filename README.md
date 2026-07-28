@@ -170,7 +170,7 @@ Import **Runtime List Example** from Package Manager, then configure a GameObjec
 
 1. Add `RuntimeListExample` to the same GameObject that should own the sample animation.
 2. Assign the scene's `VirtualScrollView` to `RuntimeListExample.ScrollView`.
-3. Leave `RuntimeListExample.AnimationProvider` empty to use the default `SlideListAnimation`, or assign another component implementing `IVirtualScrollAnimation`.
+3. Leave both provider fields empty to let the example add its default `SlideListAnimation`. `VirtualScrollView.AnimationProvider` has priority when configured; `RuntimeListExample.AnimationProvider` is only a fallback and cannot overwrite the ScrollView field.
 4. Enter Play Mode.
 5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
 
@@ -183,14 +183,14 @@ The example insertion and removal methods deliberately change `ItemCount` before
 ```csharp
 public void InsertVisibleItem()
 {
-    var index = Mathf.Max(0, ScrollView.FirstVisibleIndex);
+    var index = Mathf.Max(0, ScrollView.FirstViewportIndex);
     ItemCount++;
     ScrollView.NotifyItemsInserted(index, 1, EVirtualScrollPositionMode.KeepOffset);
 }
 
 public void RemoveVisibleItem()
 {
-    var index = Mathf.Clamp(ScrollView.FirstVisibleIndex, 0, ItemCount - 1);
+    var index = Mathf.Clamp(ScrollView.FirstViewportIndex, 0, ItemCount - 1);
     ItemCount--;
     ScrollView.NotifyItemsRemoved(index, 1, EVirtualScrollPositionMode.KeepOffset);
 }
@@ -198,9 +198,13 @@ public void RemoveVisibleItem()
 
 `KeepOffset` makes the changed visible position easy to observe in the sample. Production code can keep the default `KeepAnchor`, use `StickToEnd` for chat messages, or choose another position mode independently of animation.
 
+`FirstViewportIndex` excludes overscan and is appropriate for actions that must be visibly demonstrated. `FirstMaterializedIndex` and `LastMaterializedIndex` include overscan and are intended for virtualization diagnostics. The legacy `FirstVisibleIndex` and `LastVisibleIndex` properties retain their materialized semantics for compatibility.
+
 ### Implement a custom provider
 
 Implement `IVirtualScrollAnimation` when a project wants DOTween, PrimeTween, Animator, or its own update system. Assign the implementing `MonoBehaviour` to `VirtualScrollView.AnimationProvider` in the Inspector:
+
+If a configured component does not implement `IVirtualScrollAnimation`, the scroll view logs an error and skips that collection animation. It does not silently substitute the built-in scale-and-fade presentation. Leave the provider empty explicitly when the built-in animation is desired.
 
 Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views retain their existing binding, remain materialized, and render above replacement views until `context.Complete()` is called. `UnbindItem` runs only after the removal animation completes.
 
