@@ -27,6 +27,12 @@ namespace TristinWen.VirtualScroll.Sample
         public MonoBehaviour AnimationProvider;
 
         /// <summary>
+        /// Duration used by the sample collection animation.
+        /// </summary>
+        [Min(0.01f)]
+        public float AnimationDuration = 0.6f;
+
+        /// <summary>
         /// Number of generated data items.
         /// </summary>
         [Min(0)]
@@ -63,6 +69,7 @@ namespace TristinWen.VirtualScroll.Sample
             }
 
             ScrollView.AnimationProvider = AnimationProvider;
+            ScrollView.ChangeAnimationDuration = AnimationDuration;
             ScrollView.SetDataSource(this);
         }
 

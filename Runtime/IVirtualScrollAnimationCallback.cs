@@ -1,6 +1,5 @@
 //---------------------------------------------------------------------------------------
-// Copyright (c) WithMe8 2023-2030
-// Author: WYF
+// Author: Tristin Wen
 // Date: 2026-07-28
 // Desc: Receives allocation-free completion signals from animation providers.
 //---------------------------------------------------------------------------------------

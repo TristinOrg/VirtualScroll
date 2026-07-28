@@ -174,7 +174,7 @@ Import **Runtime List Example** from Package Manager, then configure a GameObjec
 4. Enter Play Mode.
 5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
 
-The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores position, scale, and opacity before pooled reuse.
+The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. The example applies its `AnimationDuration` value (`0.6` seconds by default) to make playback easy to observe. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores position, scale, and opacity before pooled reuse.
 
 `RuntimeListExample.AnimationProvider` accepts any `MonoBehaviour`. The assigned component must implement `IVirtualScrollAnimation`, so the same field can be used with the included sample, PrimeTween, DOTween, Animator, or a project-specific provider.
 
