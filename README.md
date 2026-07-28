@@ -168,13 +168,13 @@ Normal scrolling and ordinary item reuse do not start collection animations.
 
 Import **Runtime List Example** from Package Manager, then configure a GameObject as follows:
 
-1. Add `RuntimeListExample` and `ScaleFadeListAnimation` components.
+1. Add `RuntimeListExample` to the same GameObject that should own the sample animation.
 2. Assign the scene's `VirtualScrollView` to `RuntimeListExample.ScrollView`.
-3. Assign `ScaleFadeListAnimation` to `RuntimeListExample.AnimationProvider`.
+3. Leave `RuntimeListExample.AnimationProvider` empty to use the default `SlideListAnimation`, or assign another component implementing `IVirtualScrollAnimation`.
 4. Enter Play Mode.
 5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
 
-The complete provider is in `Samples~/RuntimeListExample/ScaleFadeListAnimation.cs`. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores scale and opacity before pooled reuse.
+The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores position, scale, and opacity before pooled reuse.
 
 `RuntimeListExample.AnimationProvider` accepts any `MonoBehaviour`. The assigned component must implement `IVirtualScrollAnimation`, so the same field can be used with the included sample, PrimeTween, DOTween, Animator, or a project-specific provider.
 

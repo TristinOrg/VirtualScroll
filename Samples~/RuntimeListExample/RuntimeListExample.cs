@@ -53,11 +53,16 @@ namespace TristinWen.VirtualScroll.Sample
             }
 
             ScrollView.AnimateChanges = true;
-            if (AnimationProvider)
+            if (!AnimationProvider)
             {
-                ScrollView.AnimationProvider = AnimationProvider;
+                AnimationProvider = GetComponent<SlideListAnimation>();
+                if (!AnimationProvider)
+                {
+                    AnimationProvider = gameObject.AddComponent<SlideListAnimation>();
+                }
             }
 
+            ScrollView.AnimationProvider = AnimationProvider;
             ScrollView.SetDataSource(this);
         }
 
