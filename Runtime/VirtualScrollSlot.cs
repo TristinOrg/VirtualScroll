@@ -36,9 +36,29 @@ namespace TristinWen.VirtualScroll
         public CanvasGroup CanvasGroup;
 
         /// <summary>
-        /// Changes whenever the slot is rebound so stale animation coroutines can stop safely.
+        /// Unique animation identifier used to reject stale provider completion signals.
         /// </summary>
-        public int AnimationVersion;
+        public int AnimationId;
+
+        /// <summary>
+        /// Custom presentation provider that owns the current animation state.
+        /// </summary>
+        public IVirtualScrollAnimation Animation;
+
+        /// <summary>
+        /// Immutable context supplied to the current animation provider.
+        /// </summary>
+        public VirtualScrollAnimationContext AnimationContext;
+
+        /// <summary>
+        /// Whether item presentation is currently owned by an animation.
+        /// </summary>
+        public bool IsAnimating;
+
+        /// <summary>
+        /// Elapsed unscaled time used only by the built-in animation.
+        /// </summary>
+        public float AnimationElapsed;
 
         /// <summary>
         /// Item scale restored after change animation.

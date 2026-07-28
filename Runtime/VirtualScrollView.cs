@@ -6,7 +6,6 @@
 // Desc: High-performance virtualized uGUI list for fixed-size and variable-size items.
 //---------------------------------------------------------------------------------------
 
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -19,7 +18,7 @@ namespace TristinWen.VirtualScroll
     /// </summary>
     [AddComponentMenu("UI/Virtual Scroll View")]
     [DisallowMultipleComponent]
-    public sealed class VirtualScrollView : ScrollRect
+    public sealed class VirtualScrollView : ScrollRect, IVirtualScrollAnimationCallback
     {
         /// <summary>
         /// Main scrolling direction.
@@ -95,6 +94,16 @@ namespace TristinWen.VirtualScroll
         public float ChangeAnimationDuration = 0.2f;
 
         /// <summary>
+        /// Optional component implementing <see cref="IVirtualScrollAnimation"/>; leave empty to use the built-in scale and opacity animation.
+        /// </summary>
+        public MonoBehaviour AnimationProvider;
+
+        /// <summary>
+        /// Gets or sets a runtime animation provider that takes precedence over <see cref="AnimationProvider"/>.
+        /// </summary>
+        public IVirtualScrollAnimation Animation { get; set; }
+
+        /// <summary>
         /// Captures authoring-time layout values outside the scrolling hot path.
         /// </summary>
         private readonly VirtualScrollLayoutCapture mLayoutCapture = new();
@@ -133,6 +142,16 @@ namespace TristinWen.VirtualScroll
         /// Removed slots currently completing their exit animation.
         /// </summary>
         private readonly List<VirtualScrollSlot> mAnimatingRemovalSlots = new();
+
+        /// <summary>
+        /// Slots using the built-in animation, updated without coroutines or per-frame allocations.
+        /// </summary>
+        private readonly List<VirtualScrollSlot> mDefaultAnimationSlots = new();
+
+        /// <summary>
+        /// Animations keyed by unique identifier for allocation-free provider completion.
+        /// </summary>
+        private readonly Dictionary<int, VirtualScrollSlot> mAnimatingSlots = new();
 
         /// <summary>
         /// Reusable slot buffer used while remapping indices after collection changes.
@@ -178,6 +197,11 @@ namespace TristinWen.VirtualScroll
         /// Exclusive end of the inserted range awaiting an entrance animation.
         /// </summary>
         private int mAnimatedInsertEnd = -1;
+
+        /// <summary>
+        /// Last issued animation identifier.
+        /// </summary>
+        private int mLastAnimationId;
 
         /// <summary>
         /// Captured parameters used after the source LayoutGroup is disabled.
@@ -380,8 +404,7 @@ namespace TristinWen.VirtualScroll
             RefreshVisible(true);
             if (movedSlotWasActive && mAnimatedInsertFirst >= 0 && mActiveSlots.TryGetValue(newIndex, out var movedSlot))
             {
-                movedSlot.AnimationVersion++;
-                StartCoroutine(AnimateInsertion(movedSlot, movedSlot.AnimationVersion));
+                StartInsertionAnimation(movedSlot);
             }
 
             ClearPendingInsertionAnimation();
@@ -494,6 +517,15 @@ namespace TristinWen.VirtualScroll
         }
 
         /// <summary>
+        /// Advances built-in collection animations without creating coroutines.
+        /// </summary>
+        protected override void LateUpdate()
+        {
+            base.LateUpdate();
+            UpdateDefaultAnimations();
+        }
+
+        /// <summary>
         /// Recalculates content and visibility when the viewport changes size.
         /// </summary>
         protected override void OnRectTransformDimensionsChange()
@@ -514,7 +546,6 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         protected override void OnDestroy()
         {
-            StopAllCoroutines();
             RecycleAllActive();
             RecycleAnimatingRemovalSlots();
             mPools.Clear();
@@ -845,13 +876,12 @@ namespace TristinWen.VirtualScroll
             slot.Item     = item;
             slot.Index    = index;
             slot.ItemType = itemType;
-            slot.AnimationVersion++;
             mActiveSlots.Add(index, slot);
             PositionSlot(slot);
             mDataSource.BindItem(item, index);
             if (index >= mAnimatedInsertFirst && index < mAnimatedInsertEnd)
             {
-                StartCoroutine(AnimateInsertion(slot, slot.AnimationVersion));
+                StartInsertionAnimation(slot);
             }
         }
 
@@ -978,6 +1008,7 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
+            CompleteAnimation(slot, true);
             mDataSource?.UnbindItem(slot.Item, index);
             PoolDetachedSlot(slot);
         }
@@ -988,7 +1019,7 @@ namespace TristinWen.VirtualScroll
         /// <param name="slot">Detached slot.</param>
         private void PoolDetachedSlot(VirtualScrollSlot slot)
         {
-            ResetAnimatedItem(slot);
+            CompleteAnimation(slot, true);
             slot.Item.gameObject.SetActive(false);
             if (!mPools.TryGetValue(slot.ItemType, out var pool))
             {
@@ -997,14 +1028,28 @@ namespace TristinWen.VirtualScroll
             }
 
             pool.Push(slot.Item);
-            slot.Item        = null;
-            slot.Index       = -1;
-            slot.ItemType    = 0;
-            slot.CanvasGroup = null;
-            slot.AnimationVersion++;
-            slot.RestingScale = Vector3.one;
-            slot.RestingAlpha = 1f;
+            slot.Item             = null;
+            slot.Index            = -1;
+            slot.ItemType         = 0;
+            slot.CanvasGroup      = null;
+            slot.Animation        = null;
+            slot.AnimationId      = 0;
+            slot.AnimationContext = default;
+            slot.IsAnimating      = false;
+            slot.AnimationElapsed = 0f;
+            slot.RestingScale     = Vector3.one;
+            slot.RestingAlpha     = 1f;
             mSlotPool.Push(slot);
+        }
+
+        /// <summary>
+        /// Starts an entrance animation for a newly materialized or moved item.
+        /// </summary>
+        /// <param name="slot">Active slot to animate.</param>
+        private void StartInsertionAnimation(VirtualScrollSlot slot)
+        {
+            CompleteAnimation(slot, true);
+            BeginAnimation(slot, EVirtualScrollAnimationType.Insert);
         }
 
         /// <summary>
@@ -1013,70 +1058,152 @@ namespace TristinWen.VirtualScroll
         /// <param name="slot">Detached slot to animate.</param>
         private void StartRemovalAnimation(VirtualScrollSlot slot)
         {
-            PrepareAnimatedItem(slot);
-            slot.AnimationVersion++;
-            mAnimatingRemovalSlots.Add(slot);
-            StartCoroutine(AnimateRemoval(slot, slot.AnimationVersion));
+            CompleteAnimation(slot, true);
+            BeginAnimation(slot, EVirtualScrollAnimationType.Remove);
         }
 
         /// <summary>
-        /// Animates a newly visible inserted item.
+        /// Gives item presentation ownership to the configured provider or built-in animation.
         /// </summary>
-        /// <param name="slot">Active inserted slot.</param>
-        /// <param name="version">Binding version used to reject stale coroutines.</param>
-        /// <returns>Animation enumerator.</returns>
-        private IEnumerator AnimateInsertion(VirtualScrollSlot slot, int version)
+        /// <param name="slot">Slot beginning animation.</param>
+        /// <param name="animationType">Collection change being represented.</param>
+        private void BeginAnimation(VirtualScrollSlot slot, EVirtualScrollAnimationType animationType)
         {
-            PrepareAnimatedItem(slot);
-            var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
-            var elapsed  = 0f;
-            while (elapsed < duration)
+            var duration          = Mathf.Max(0.01f, ChangeAnimationDuration);
+            slot.Animation        = ResolveAnimationProvider();
+            slot.AnimationId      = GetNextAnimationId();
+            slot.AnimationContext = new VirtualScrollAnimationContext(slot.Item, animationType, duration, slot.AnimationId, this);
+            slot.IsAnimating      = true;
+            slot.AnimationElapsed = 0f;
+            mAnimatingSlots.Add(slot.AnimationId, slot);
+            if (animationType == EVirtualScrollAnimationType.Remove)
             {
-                if (!IsActiveAnimationCurrent(slot, version))
-                {
-                    yield break;
-                }
+                mAnimatingRemovalSlots.Add(slot);
+            }
 
-                elapsed                += Time.unscaledDeltaTime;
-                var progress           = Mathf.Clamp01(elapsed / duration);
+            if (slot.Animation != null)
+            {
+                slot.Animation.Play(slot.AnimationContext);
+                return;
+            }
+
+            PrepareAnimatedItem(slot);
+            mDefaultAnimationSlots.Add(slot);
+        }
+
+        /// <summary>
+        /// Gets a nonzero animation identifier unique among active animations.
+        /// </summary>
+        /// <returns>Unique animation identifier.</returns>
+        private int GetNextAnimationId()
+        {
+            do
+            {
+                mLastAnimationId++;
+                if (mLastAnimationId == 0)
+                {
+                    mLastAnimationId++;
+                }
+            }
+            while (mAnimatingSlots.ContainsKey(mLastAnimationId));
+
+            return mLastAnimationId;
+        }
+
+        /// <summary>
+        /// Resolves the runtime or Inspector animation provider outside the scrolling hot path.
+        /// </summary>
+        /// <returns>Configured provider, or null to use built-in presentation.</returns>
+        private IVirtualScrollAnimation ResolveAnimationProvider()
+        {
+            if (Animation != null)
+            {
+                return Animation;
+            }
+
+            if (!AnimationProvider)
+            {
+                return null;
+            }
+
+            var animation = AnimationProvider as IVirtualScrollAnimation;
+            if (animation == null)
+            {
+                Debug.LogError("AnimationProvider must implement IVirtualScrollAnimation.", this);
+            }
+
+            return animation;
+        }
+
+        /// <summary>
+        /// Advances built-in animations and completes them without coroutine allocation.
+        /// </summary>
+        private void UpdateDefaultAnimations()
+        {
+            for (var i = mDefaultAnimationSlots.Count - 1; i >= 0; i--)
+            {
+                var slot = mDefaultAnimationSlots[i];
+                slot.AnimationElapsed += Time.unscaledDeltaTime;
+                var progress           = Mathf.Clamp01(slot.AnimationElapsed / slot.AnimationContext.Duration);
+                EvaluateDefaultAnimation(slot, progress);
+                if (progress >= 1f)
+                {
+                    CompleteAnimation(slot, false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Applies one normalized built-in animation sample.
+        /// </summary>
+        /// <param name="slot">Slot being animated.</param>
+        /// <param name="progress">Normalized progress.</param>
+        private static void EvaluateDefaultAnimation(VirtualScrollSlot slot, float progress)
+        {
+            if (slot.AnimationContext.AnimationType == EVirtualScrollAnimationType.Insert)
+            {
                 slot.Item.localScale   = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
                 slot.CanvasGroup.alpha = Mathf.Lerp(0f, slot.RestingAlpha, progress);
-                yield return null;
             }
-
-            if (IsActiveAnimationCurrent(slot, version))
+            else
             {
-                ResetAnimatedItem(slot);
+                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
+                slot.CanvasGroup.alpha = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
             }
         }
 
         /// <summary>
-        /// Animates an unbound removed item before returning it to the pool.
+        /// Ends item presentation ownership and restores a reusable state.
         /// </summary>
-        /// <param name="slot">Detached removed slot.</param>
-        /// <param name="version">Animation version used to reject stale coroutines.</param>
-        /// <returns>Animation enumerator.</returns>
-        private IEnumerator AnimateRemoval(VirtualScrollSlot slot, int version)
+        /// <param name="slot">Slot whose animation ended.</param>
+        /// <param name="canceled">Whether playback was interrupted.</param>
+        private void CompleteAnimation(VirtualScrollSlot slot, bool canceled)
         {
-            var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
-            var elapsed  = 0f;
-            while (elapsed < duration)
+            if (!slot.IsAnimating)
             {
-                if (slot.AnimationVersion != version || !mAnimatingRemovalSlots.Contains(slot))
-                {
-                    yield break;
-                }
-
-                elapsed                += Time.unscaledDeltaTime;
-                var progress           = Mathf.Clamp01(elapsed / duration);
-                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
-                slot.CanvasGroup.alpha = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
-                yield return null;
+                return;
             }
 
-            if (slot.AnimationVersion == version && mAnimatingRemovalSlots.Remove(slot))
+            var animationType = slot.AnimationContext.AnimationType;
+            mAnimatingSlots.Remove(slot.AnimationId);
+            mDefaultAnimationSlots.Remove(slot);
+            mAnimatingRemovalSlots.Remove(slot);
+            if (slot.Animation != null && canceled)
+            {
+                slot.Animation.Cancel(slot.AnimationContext);
+            }
+            else if (slot.Animation == null)
             {
                 ResetAnimatedItem(slot);
+            }
+
+            slot.Animation        = null;
+            slot.AnimationId      = 0;
+            slot.AnimationContext = default;
+            slot.IsAnimating      = false;
+            slot.AnimationElapsed = 0f;
+            if (!canceled && animationType == EVirtualScrollAnimationType.Remove)
+            {
                 PoolDetachedSlot(slot);
             }
         }
@@ -1119,14 +1246,15 @@ namespace TristinWen.VirtualScroll
         }
 
         /// <summary>
-        /// Gets whether an insertion animation still owns the same active binding.
+        /// Completes provider-owned playback when its unique identifier is still current.
         /// </summary>
-        /// <param name="slot">Animated active slot.</param>
-        /// <param name="version">Expected binding version.</param>
-        /// <returns>True when the binding is unchanged.</returns>
-        private bool IsActiveAnimationCurrent(VirtualScrollSlot slot, int version)
+        /// <param name="animationId">Unique animation identifier.</param>
+        void IVirtualScrollAnimationCallback.CompleteAnimation(int animationId)
         {
-            return slot.AnimationVersion == version && mActiveSlots.TryGetValue(slot.Index, out var activeSlot) && ReferenceEquals(activeSlot, slot);
+            if (mAnimatingSlots.TryGetValue(animationId, out var slot) && slot.AnimationId == animationId)
+            {
+                CompleteAnimation(slot, false);
+            }
         }
 
         /// <summary>
@@ -1134,14 +1262,12 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         private void RecycleAnimatingRemovalSlots()
         {
-            for (var i = mAnimatingRemovalSlots.Count - 1; i >= 0; i--)
+            while (mAnimatingRemovalSlots.Count > 0)
             {
-                var slot = mAnimatingRemovalSlots[i];
-                ResetAnimatedItem(slot);
+                var slot = mAnimatingRemovalSlots[mAnimatingRemovalSlots.Count - 1];
+                CompleteAnimation(slot, true);
                 PoolDetachedSlot(slot);
             }
-
-            mAnimatingRemovalSlots.Clear();
         }
 
         /// <summary>

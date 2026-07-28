@@ -222,6 +222,43 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies a custom provider receives insert, interruption, and removal lifecycle callbacks.
+        /// </summary>
+        [Test]
+        public void CustomAnimationProviderOwnsCollectionChangePresentation()
+        {
+            var scrollView                     = CreateScrollView();
+            var animationProvider              = new VirtualScrollAnimationTestProvider();
+            var dataSource                     = new VirtualScrollViewTestDataSource();
+            scrollView.AnimateChanges          = true;
+            scrollView.Animation               = animationProvider;
+            scrollView.ChangeAnimationDuration = 10f;
+            scrollView.SetDataSource(dataSource);
+
+            dataSource.Count = 1;
+            scrollView.NotifyItemsInserted(0, 1);
+
+            Assert.AreEqual(1, animationProvider.PlayCount);
+            Assert.AreEqual(EVirtualScrollAnimationType.Insert, animationProvider.LastAnimationType);
+            var staleContext = animationProvider.LastContext;
+
+            dataSource.Count = 0;
+            scrollView.NotifyItemsRemoved(0, 1);
+
+            Assert.AreEqual(2, animationProvider.PlayCount);
+            Assert.AreEqual(1, animationProvider.CancelCount);
+            Assert.AreEqual(EVirtualScrollAnimationType.Remove, animationProvider.LastAnimationType);
+            var removedItem = animationProvider.LastContext.Item;
+
+            staleContext.Complete();
+            Assert.IsTrue(removedItem.gameObject.activeSelf);
+            animationProvider.CompleteLast();
+
+            Assert.AreEqual(1, animationProvider.CancelCount);
+            Assert.IsFalse(removedItem.gameObject.activeSelf);
+        }
+
+        /// <summary>
         /// Creates a vertical VirtualScrollView with a 300-by-300 viewport.
         /// </summary>
         /// <returns>Configured scroll view.</returns>

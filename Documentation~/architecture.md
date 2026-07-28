@@ -12,6 +12,8 @@ The scrolling hot path first calculates the desired visible range. If that range
 
 Collection notifications remap active slot indices before rebuilding layout metadata. This preserves views representing unchanged logical items. Anchor refresh mode stores the first visible logical item and its viewport-relative offset, then restores both after insertion, removal, or movement.
 
+Collection animation interruption and removal pooling remain owned by `VirtualScrollView`. An optional `IVirtualScrollAnimation` component fully owns playback through an immutable context and signals natural completion without package-created closures or coroutines. Unique animation identifiers reject stale completion calls while leaving the normal scrolling hot path unchanged. The built-in animation uses a reusable `LateUpdate` list and unscaled time.
+
 Supported uGUI LayoutGroups are authoring inputs rather than runtime layout engines. Their parameters are captured once, the components are disabled, and the virtual layout applies equivalent padding, spacing, lanes, cell dimensions, alignment, and cross-axis corner ordering without invoking Unity's per-child layout rebuild path.
 
 ## Item ownership

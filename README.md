@@ -154,6 +154,25 @@ Visible views representing unchanged logical items are remapped and retained. `K
 
 Set `AnimateChanges` to enable opacity and scale animations for visible insertions and removals. Animation is optional and does not run in the normal scrolling path.
 
+To replace the built-in presentation, assign a `MonoBehaviour` implementing `IVirtualScrollAnimation` to `AnimationProvider`, or set the runtime-only `Animation` property. The provider fully owns playback and may use DOTween, PrimeTween, Animator, or another animation system. `VirtualScrollView` only owns interruption and delayed removal pooling:
+
+```csharp
+public sealed class SlideAnimation : MonoBehaviour, IVirtualScrollAnimation
+{
+    public void Play(VirtualScrollAnimationContext context)
+    {
+        // Start any animation system, then call context.Complete() after natural completion.
+    }
+
+    public void Cancel(VirtualScrollAnimationContext context)
+    {
+        // Stop playback and restore every changed property immediately.
+    }
+}
+```
+
+Each context has a unique animation ID, so stale or duplicate completion calls are ignored safely. Provider callbacks only run for materialized collection changes. Normal scrolling does not call the provider, and the package does not create animation coroutines.
+
 ## Grid and masonry layouts
 
 Set `CrossAxisCount` above one:
