@@ -22,6 +22,11 @@ namespace TristinWen.VirtualScroll.Sample
         public VirtualScrollView ScrollView;
 
         /// <summary>
+        /// Optional sample provider assigned to the scroll view at startup.
+        /// </summary>
+        public ScaleFadeListAnimation AnimationProvider;
+
+        /// <summary>
         /// Number of generated data items.
         /// </summary>
         [Min(0)]
@@ -47,7 +52,45 @@ namespace TristinWen.VirtualScroll.Sample
                 return;
             }
 
+            ScrollView.AnimateChanges = true;
+            if (AnimationProvider)
+            {
+                ScrollView.AnimationProvider = AnimationProvider;
+            }
+
             ScrollView.SetDataSource(this);
+        }
+
+        /// <summary>
+        /// Inserts one item at the first visible index so its entrance animation can be observed.
+        /// </summary>
+        [ContextMenu("Insert Visible Item")]
+        public void InsertVisibleItem()
+        {
+            if (!Application.isPlaying || !ScrollView)
+            {
+                return;
+            }
+
+            var index = Mathf.Max(0, ScrollView.FirstVisibleIndex);
+            ItemCount++;
+            ScrollView.NotifyItemsInserted(index, 1, EVirtualScrollPositionMode.KeepOffset);
+        }
+
+        /// <summary>
+        /// Removes the first visible item and keeps its view alive until its exit animation completes.
+        /// </summary>
+        [ContextMenu("Remove Visible Item")]
+        public void RemoveVisibleItem()
+        {
+            if (!Application.isPlaying || !ScrollView || ItemCount <= 0)
+            {
+                return;
+            }
+
+            var index = Mathf.Clamp(ScrollView.FirstVisibleIndex, 0, ItemCount - 1);
+            ItemCount--;
+            ScrollView.NotifyItemsRemoved(index, 1, EVirtualScrollPositionMode.KeepOffset);
         }
 
         /// <summary>

@@ -152,26 +152,102 @@ ScrollView.NotifyItemMoved(oldIndex, newIndex);
 
 Visible views representing unchanged logical items are remapped and retained. `KeepAnchor` is the default for collection changes, so inserting older mail above the viewport does not move the reader's current mail.
 
-Set `AnimateChanges` to enable opacity and scale animations for visible insertions and removals. Animation is optional and does not run in the normal scrolling path.
+## Collection animations
 
-To replace the built-in presentation, assign a `MonoBehaviour` implementing `IVirtualScrollAnimation` to `AnimationProvider`, or set the runtime-only `Animation` property. The provider fully owns playback and may use DOTween, PrimeTween, Animator, or another animation system. `VirtualScrollView` only owns interruption and delayed removal pooling:
+Set `AnimateChanges` to enable animations for visible insertions, removals, and moved-item entrances. Leave `AnimationProvider` empty to use the built-in unscaled-time opacity and scale animation.
+
+Animations are attached to collection notifications, not `BindItem`. Always perform operations in this order:
+
+1. Change the backing collection or count.
+2. Call the matching `NotifyItemsInserted`, `NotifyItemsRemoved`, or `NotifyItemMoved` method.
+3. Let `VirtualScrollView` animate only the affected views that are currently materialized.
+
+Normal scrolling and ordinary item reuse do not start collection animations.
+
+### Try the included example
+
+Import **Runtime List Example** from Package Manager, then configure a GameObject as follows:
+
+1. Add `RuntimeListExample` and `ScaleFadeListAnimation` components.
+2. Assign the scene's `VirtualScrollView` to `RuntimeListExample.ScrollView`.
+3. Assign `ScaleFadeListAnimation` to `RuntimeListExample.AnimationProvider`.
+4. Enter Play Mode.
+5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
+
+The complete provider is in `Samples~/RuntimeListExample/ScaleFadeListAnimation.cs`. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores scale and opacity before pooled reuse.
+
+The example insertion and removal methods deliberately change `ItemCount` before notifying the scroll view:
 
 ```csharp
-public sealed class SlideAnimation : MonoBehaviour, IVirtualScrollAnimation
+public void InsertVisibleItem()
+{
+    var index = Mathf.Max(0, ScrollView.FirstVisibleIndex);
+    ItemCount++;
+    ScrollView.NotifyItemsInserted(index, 1, EVirtualScrollPositionMode.KeepOffset);
+}
+
+public void RemoveVisibleItem()
+{
+    var index = Mathf.Clamp(ScrollView.FirstVisibleIndex, 0, ItemCount - 1);
+    ItemCount--;
+    ScrollView.NotifyItemsRemoved(index, 1, EVirtualScrollPositionMode.KeepOffset);
+}
+```
+
+`KeepOffset` makes the changed visible position easy to observe in the sample. Production code can keep the default `KeepAnchor`, use `StickToEnd` for chat messages, or choose another position mode independently of animation.
+
+### Implement a custom provider
+
+Implement `IVirtualScrollAnimation` when a project wants DOTween, PrimeTween, Animator, or its own update system. Assign the implementing `MonoBehaviour` to `VirtualScrollView.AnimationProvider` in the Inspector:
+
+```csharp
+public sealed class CustomListAnimation : MonoBehaviour, IVirtualScrollAnimation
 {
     public void Play(VirtualScrollAnimationContext context)
     {
-        // Start any animation system, then call context.Complete() after natural completion.
+        // Start playback for context.Item.
+        // Use context.AnimationType to select insert or remove presentation.
+        // Use context.Duration when the scroll-view duration should be respected.
+
+        // Call exactly once after natural completion.
+        context.Complete();
     }
 
     public void Cancel(VirtualScrollAnimationContext context)
     {
-        // Stop playback and restore every changed property immediately.
+        // Stop the animation identified by context.AnimationId.
+        // Restore every changed property immediately.
+        // Do not call context.Complete() from this method.
     }
 }
 ```
 
-Each context has a unique animation ID, so stale or duplicate completion calls are ignored safely. Provider callbacks only run for materialized collection changes. Normal scrolling does not call the provider, and the package does not create animation coroutines.
+Code-created providers that are not `MonoBehaviour` instances can instead use the runtime-only property:
+
+```csharp
+ScrollView.Animation = customAnimation;
+ScrollView.AnimateChanges = true;
+```
+
+`VirtualScrollAnimationContext` provides:
+
+- `Item`: the materialized `RectTransform` being animated.
+- `AnimationType`: `Insert` or `Remove`.
+- `Duration`: `ChangeAnimationDuration`, clamped to a positive value.
+- `AnimationId`: a unique identifier for matching concurrent playback and cancellation.
+- `Complete()`: signals natural completion. Removed views are returned to the pool only after this call.
+
+### Provider lifecycle rules
+
+- `Play` owns timing and presentation. `VirtualScrollView` does not start a coroutine for a custom provider.
+- `Cancel` may run when an item scrolls away, is rebound, another animation replaces it, or the scroll view is destroyed.
+- `Cancel` must stop external tweens and restore every modified property so the pool never retains scale, opacity, position, rotation, or material state.
+- Call `context.Complete()` after natural completion, including when disabling a provider that still owns active animations. Otherwise removed views must remain detached and cannot return to the pool.
+- Do not call `Complete()` from `Cancel`; the scroll view has already ended ownership for that animation.
+- Stale and duplicate `Complete()` calls are ignored through `AnimationId`, so a late callback cannot recycle a newly rebound item.
+- A provider must support multiple simultaneous contexts when a range is inserted or removed.
+
+Animations affect currently materialized items only. Inserting outside the viewport still updates indices and layout, but creates no animation work.
 
 ## Grid and masonry layouts
 

@@ -9,6 +9,7 @@
 - Added incremental insertion, removal, and move notifications that retain visible views.
 - Added optional unscaled-time insertion and removal animations.
 - Added replaceable `IVirtualScrollAnimation` providers with provider-owned playback and stale-safe completion signaling.
+- Added a coroutine-free scale-and-fade sample with directly callable visible insertion and removal actions.
 - Added fixed-size multi-lane grids and variable-size masonry layouts.
 - Added independent uniform main-axis and cross-axis spacing.
 - Added grid and masonry EditMode coverage.
