@@ -129,9 +129,9 @@ namespace TristinWen.VirtualScroll.Tests
         [Test]
         public void GridLayoutGroupIsCapturedDisabledAndRestored()
         {
-            var scrollView = CreateScrollView();
+            var scrollView  = CreateScrollView();
             var layoutGroup = AddGridLayout(scrollView.content);
-            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
+            var dataSource  = new VirtualScrollViewTestDataSource { Count = 10 };
 
             scrollView.SetDataSource(dataSource);
 
@@ -157,11 +157,11 @@ namespace TristinWen.VirtualScroll.Tests
         [Test]
         public void ItemSizeOverrideKeepsLayoutGroupSpacing()
         {
-            var scrollView = CreateScrollView();
-            var layoutGroup = AddGridLayout(scrollView.content);
-            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
+            var scrollView                    = CreateScrollView();
+            var layoutGroup                   = AddGridLayout(scrollView.content);
+            var dataSource                    = new VirtualScrollViewTestDataSource { Count = 10 };
             scrollView.OverrideLayoutItemSize = true;
-            scrollView.FixedMainAxisSize = 90f;
+            scrollView.FixedMainAxisSize      = 90f;
 
             scrollView.SetDataSource(dataSource);
 
@@ -182,12 +182,12 @@ namespace TristinWen.VirtualScroll.Tests
         [Test]
         public void VariableItemSizeKeepsVerticalLayoutGroupSpacing()
         {
-            var scrollView = CreateScrollView();
-            var layoutGroup = scrollView.content.gameObject.AddComponent<VerticalLayoutGroup>();
-            layoutGroup.spacing = 13f;
-            layoutGroup.padding = new RectOffset(5, 7, 20, 30);
-            var dataSource = new VirtualScrollViewTestDataSource { Count = 10 };
-            scrollView.SizeMode = EVirtualScrollSizeMode.Variable;
+            var scrollView                   = CreateScrollView();
+            var layoutGroup                  = scrollView.content.gameObject.AddComponent<VerticalLayoutGroup>();
+            layoutGroup.spacing              = 13f;
+            layoutGroup.padding              = new RectOffset(5, 7, 20, 30);
+            var dataSource                   = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.SizeMode              = EVirtualScrollSizeMode.Variable;
             scrollView.EstimatedMainAxisSize = 50f;
 
             scrollView.SetDataSource(dataSource);
@@ -195,7 +195,7 @@ namespace TristinWen.VirtualScroll.Tests
             Assert.IsFalse(layoutGroup.enabled);
             Assert.AreEqual(13f, scrollView.Spacing);
             Assert.AreEqual(667f, scrollView.content.sizeDelta.y, 0.001f);
-            var firstItem = scrollView.content.Find("Test Item 0") as RectTransform;
+            var firstItem  = scrollView.content.Find("Test Item 0") as RectTransform;
             var secondItem = scrollView.content.Find("Test Item 1") as RectTransform;
             Assert.NotNull(firstItem);
             Assert.NotNull(secondItem);
@@ -210,8 +210,8 @@ namespace TristinWen.VirtualScroll.Tests
         [Test]
         public void LargeVariableDataSourceDoesNotResolveEveryItemSize()
         {
-            var scrollView = CreateScrollView();
-            var dataSource = new VirtualScrollViewTestDataSource { Count = 10000 };
+            var scrollView                   = CreateScrollView();
+            var dataSource                   = new VirtualScrollViewTestDataSource { Count = 10000 };
             scrollView.SizeMode              = EVirtualScrollSizeMode.Variable;
             scrollView.EstimatedMainAxisSize = 50f;
 
@@ -227,22 +227,22 @@ namespace TristinWen.VirtualScroll.Tests
         /// <returns>Configured scroll view.</returns>
         private VirtualScrollView CreateScrollView()
         {
-            mRoot = new GameObject("Virtual Scroll Test", typeof(RectTransform), typeof(VirtualScrollView));
-            var rootRect = mRoot.transform as RectTransform;
+            mRoot              = new GameObject("Virtual Scroll Test", typeof(RectTransform), typeof(VirtualScrollView));
+            var rootRect       = mRoot.transform as RectTransform;
             rootRect.sizeDelta = new Vector2(300f, 300f);
             var viewportObject = new GameObject("Viewport", typeof(RectTransform));
-            var viewport = viewportObject.transform as RectTransform;
+            var viewport       = viewportObject.transform as RectTransform;
             viewport.SetParent(rootRect, false);
             viewport.sizeDelta = new Vector2(300f, 300f);
-            var contentObject = new GameObject("Content", typeof(RectTransform));
-            var content = contentObject.transform as RectTransform;
+            var contentObject  = new GameObject("Content", typeof(RectTransform));
+            var content        = contentObject.transform as RectTransform;
             content.SetParent(viewport, false);
-            var scrollView = mRoot.GetComponent<VirtualScrollView>();
-            scrollView.viewport = viewport;
-            scrollView.content = content;
+            var scrollView               = mRoot.GetComponent<VirtualScrollView>();
+            scrollView.viewport          = viewport;
+            scrollView.content           = content;
             scrollView.FixedMainAxisSize = 50f;
-            scrollView.SizeMode = EVirtualScrollSizeMode.Fixed;
-            scrollView.Overscan = 1;
+            scrollView.SizeMode          = EVirtualScrollSizeMode.Fixed;
+            scrollView.Overscan          = 1;
             return scrollView;
         }
 
@@ -253,15 +253,15 @@ namespace TristinWen.VirtualScroll.Tests
         /// <returns>Configured layout group.</returns>
         private static GridLayoutGroup AddGridLayout(RectTransform content)
         {
-            var layoutGroup = content.gameObject.AddComponent<GridLayoutGroup>();
-            layoutGroup.cellSize = new Vector2(80f, 60f);
-            layoutGroup.spacing = new Vector2(7f, 11f);
-            layoutGroup.padding = new RectOffset(10, 20, 30, 40);
-            layoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            var layoutGroup             = content.gameObject.AddComponent<GridLayoutGroup>();
+            layoutGroup.cellSize        = new Vector2(80f, 60f);
+            layoutGroup.spacing         = new Vector2(7f, 11f);
+            layoutGroup.padding         = new RectOffset(10, 20, 30, 40);
+            layoutGroup.constraint      = GridLayoutGroup.Constraint.FixedColumnCount;
             layoutGroup.constraintCount = 2;
-            layoutGroup.startAxis = GridLayoutGroup.Axis.Horizontal;
-            layoutGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
-            layoutGroup.childAlignment = TextAnchor.UpperCenter;
+            layoutGroup.startAxis       = GridLayoutGroup.Axis.Horizontal;
+            layoutGroup.startCorner     = GridLayoutGroup.Corner.UpperLeft;
+            layoutGroup.childAlignment  = TextAnchor.UpperCenter;
             return layoutGroup;
         }
     }

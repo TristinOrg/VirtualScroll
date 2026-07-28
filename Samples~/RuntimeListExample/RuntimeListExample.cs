@@ -79,22 +79,22 @@ namespace TristinWen.VirtualScroll.Sample
         public RectTransform CreateItem(int itemType, Transform parent)
         {
             var itemObject = new GameObject("Virtual Item", typeof(RectTransform), typeof(Image), typeof(RuntimeListItem));
-            var item = itemObject.transform as RectTransform;
+            var item       = itemObject.transform as RectTransform;
             item.SetParent(parent, false);
-            var image = itemObject.GetComponent<Image>();
-            image.color = new Color(0.12f, 0.14f, 0.18f, 1f);
+            var image       = itemObject.GetComponent<Image>();
+            image.color     = new Color(0.12f, 0.14f, 0.18f, 1f);
             var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
-            var labelRect = labelObject.transform as RectTransform;
+            var labelRect   = labelObject.transform as RectTransform;
             labelRect.SetParent(item, false);
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(12f, 0f);
-            labelRect.offsetMax = new Vector2(-12f, 0f);
-            var label = labelObject.GetComponent<Text>();
-            label.font = GetRuntimeFont();
-            label.fontSize = 22;
-            label.color = Color.white;
-            label.alignment = TextAnchor.MiddleLeft;
+            labelRect.anchorMin      = Vector2.zero;
+            labelRect.anchorMax      = Vector2.one;
+            labelRect.offsetMin      = new Vector2(12f, 0f);
+            labelRect.offsetMax      = new Vector2(-12f, 0f);
+            var label                = labelObject.GetComponent<Text>();
+            label.font               = GetRuntimeFont();
+            label.fontSize           = 22;
+            label.color              = Color.white;
+            label.alignment          = TextAnchor.MiddleLeft;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             itemObject.GetComponent<RuntimeListItem>().Label = label;
             return item;
@@ -126,7 +126,7 @@ namespace TristinWen.VirtualScroll.Sample
         /// <param name="index">Data index.</param>
         public void BindItem(RectTransform item, int index)
         {
-            var label = item.GetComponent<RuntimeListItem>().Label;
+            var label  = item.GetComponent<RuntimeListItem>().Label;
             label.text = $"  Item {index:N0} — variable content line {index % 5 + 1}";
         }
 
@@ -137,7 +137,7 @@ namespace TristinWen.VirtualScroll.Sample
         /// <param name="index">Previous data index.</param>
         public void UnbindItem(RectTransform item, int index)
         {
-            var label = item.GetComponent<RuntimeListItem>().Label;
+            var label  = item.GetComponent<RuntimeListItem>().Label;
             label.text = string.Empty;
         }
     }

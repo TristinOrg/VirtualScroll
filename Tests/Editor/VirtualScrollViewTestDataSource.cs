@@ -55,7 +55,7 @@ namespace TristinWen.VirtualScroll.Tests
         public RectTransform CreateItem(int itemType, Transform parent)
         {
             var itemObject = new GameObject("Test Item", typeof(RectTransform));
-            var item = itemObject.transform as RectTransform;
+            var item       = itemObject.transform as RectTransform;
             item.SetParent(parent, false);
             return item;
         }

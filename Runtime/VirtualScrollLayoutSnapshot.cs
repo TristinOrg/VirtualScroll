@@ -156,8 +156,8 @@ namespace TristinWen.VirtualScroll
         {
             var snapshot = new VirtualScrollLayoutSnapshot
             {
-                Direction = direction,
-                MainSpacing = layoutGroup.spacing,
+                Direction      = direction,
+                MainSpacing    = layoutGroup.spacing,
                 ChildAlignment = layoutGroup.childAlignment
             };
             snapshot.CapturePadding(layoutGroup.padding);
@@ -173,27 +173,27 @@ namespace TristinWen.VirtualScroll
         private static VirtualScrollLayoutSnapshot CaptureGrid(GridLayoutGroup layoutGroup, Vector2 viewportSize)
         {
             var direction = layoutGroup.startAxis == GridLayoutGroup.Axis.Horizontal ? EVirtualScrollDirection.Vertical : EVirtualScrollDirection.Horizontal;
-            var snapshot = new VirtualScrollLayoutSnapshot
+            var snapshot  = new VirtualScrollLayoutSnapshot
             {
-                Direction = direction,
-                ChildAlignment = layoutGroup.childAlignment,
-                HasFixedMainSize = true,
+                Direction         = direction,
+                ChildAlignment    = layoutGroup.childAlignment,
+                HasFixedMainSize  = true,
                 HasFixedCrossSize = true
             };
             if (direction == EVirtualScrollDirection.Vertical)
             {
-                snapshot.MainSpacing = layoutGroup.spacing.y;
-                snapshot.CrossSpacing = layoutGroup.spacing.x;
-                snapshot.FixedMainSize = layoutGroup.cellSize.y;
-                snapshot.FixedCrossSize = layoutGroup.cellSize.x;
+                snapshot.MainSpacing      = layoutGroup.spacing.y;
+                snapshot.CrossSpacing     = layoutGroup.spacing.x;
+                snapshot.FixedMainSize    = layoutGroup.cellSize.y;
+                snapshot.FixedCrossSize   = layoutGroup.cellSize.x;
                 snapshot.ReverseCrossAxis = layoutGroup.startCorner is GridLayoutGroup.Corner.UpperRight or GridLayoutGroup.Corner.LowerRight;
             }
             else
             {
-                snapshot.MainSpacing = layoutGroup.spacing.x;
-                snapshot.CrossSpacing = layoutGroup.spacing.y;
-                snapshot.FixedMainSize = layoutGroup.cellSize.x;
-                snapshot.FixedCrossSize = layoutGroup.cellSize.y;
+                snapshot.MainSpacing      = layoutGroup.spacing.x;
+                snapshot.CrossSpacing     = layoutGroup.spacing.y;
+                snapshot.FixedMainSize    = layoutGroup.cellSize.x;
+                snapshot.FixedCrossSize   = layoutGroup.cellSize.y;
                 snapshot.ReverseCrossAxis = layoutGroup.startCorner is GridLayoutGroup.Corner.LowerLeft or GridLayoutGroup.Corner.LowerRight;
             }
 
@@ -210,17 +210,17 @@ namespace TristinWen.VirtualScroll
         {
             if (Direction == EVirtualScrollDirection.Vertical)
             {
-                MainStartPadding = padding.top;
-                MainEndPadding = padding.bottom;
+                MainStartPadding  = padding.top;
+                MainEndPadding    = padding.bottom;
                 CrossStartPadding = padding.left;
-                CrossEndPadding = padding.right;
+                CrossEndPadding   = padding.right;
             }
             else
             {
-                MainStartPadding = padding.left;
-                MainEndPadding = padding.right;
+                MainStartPadding  = padding.left;
+                MainEndPadding    = padding.right;
                 CrossStartPadding = padding.top;
-                CrossEndPadding = padding.bottom;
+                CrossEndPadding   = padding.bottom;
             }
         }
 
@@ -238,7 +238,7 @@ namespace TristinWen.VirtualScroll
             }
 
             var viewportCrossSize = Direction == EVirtualScrollDirection.Vertical ? viewportSize.x : viewportSize.y;
-            var availableSize = Mathf.Max(0f, viewportCrossSize - CrossStartPadding - CrossEndPadding);
+            var availableSize     = Mathf.Max(0f, viewportCrossSize - CrossStartPadding - CrossEndPadding);
             return Mathf.Max(1, Mathf.FloorToInt((availableSize + CrossSpacing) / Mathf.Max(0.01f, FixedCrossSize + CrossSpacing)));
         }
     }

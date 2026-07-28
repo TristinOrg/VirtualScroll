@@ -49,7 +49,7 @@ namespace TristinWen.VirtualScroll.Tests
         [Test]
         public void FixedGridMapsRowsAndLanes()
         {
-            var index = new FixedSizeIndex(8, 100f, 10f, 3);
+            var index   = new FixedSizeIndex(8, 100f, 10f, 3);
             var visible = new System.Collections.Generic.List<int>();
 
             Assert.AreEqual(0f, index.GetOffset(2));

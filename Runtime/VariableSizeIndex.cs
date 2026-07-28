@@ -49,19 +49,19 @@ namespace TristinWen.VirtualScroll
         /// <param name="estimatedSize">Initial size used for items that have not been measured.</param>
         public VariableSizeIndex(IVirtualScrollDataSource dataSource, float spacing, float estimatedSize)
         {
-            var count = Mathf.Max(0, dataSource.Count);
-            mDataSource = dataSource;
-            mSpacing    = Mathf.Max(0f, spacing);
-            mSizes      = new float[count];
-            mTree       = new float[count + 1];
-            mResolved   = new bool[count];
+            var count              = Mathf.Max(0, dataSource.Count);
+            mDataSource            = dataSource;
+            mSpacing               = Mathf.Max(0f, spacing);
+            mSizes                 = new float[count];
+            mTree                  = new float[count + 1];
+            mResolved              = new bool[count];
             var validEstimatedSize = Mathf.Max(0.01f, estimatedSize);
 
             for (var i = 0; i < count; i++)
             {
                 mSizes[i]    = validEstimatedSize;
                 mTree[i + 1] += mSizes[i] + mSpacing;
-                var parent = (i + 1) + ((i + 1) & -(i + 1));
+                var parent   = (i + 1) + ((i + 1) & -(i + 1));
                 if (parent <= count)
                 {
                     mTree[parent] += mTree[i + 1];
@@ -121,16 +121,16 @@ namespace TristinWen.VirtualScroll
                 return -1;
             }
 
-            var target = Mathf.Clamp(offset, 0f, TotalSize);
-            var index = 0;
+            var target      = Mathf.Clamp(offset, 0f, TotalSize);
+            var index       = 0;
             var accumulated = 0f;
-            var bit = HighestOneBit(Count);
+            var bit         = HighestOneBit(Count);
             while (bit != 0)
             {
                 var next = index + bit;
                 if (next <= Count && accumulated + mTree[next] <= target)
                 {
-                    index = next;
+                    index       = next;
                     accumulated += mTree[next];
                 }
 

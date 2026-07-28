@@ -45,9 +45,9 @@ namespace TristinWen.VirtualScroll
         /// <param name="crossAxisCount">Number of equal-width lanes.</param>
         public FixedSizeIndex(int count, float itemSize, float spacing, int crossAxisCount = 1)
         {
-            mCount = Mathf.Max(0, count);
-            mItemSize = Mathf.Max(0.01f, itemSize);
-            mSpacing = Mathf.Max(0f, spacing);
+            mCount          = Mathf.Max(0, count);
+            mItemSize       = Mathf.Max(0.01f, itemSize);
+            mSpacing        = Mathf.Max(0f, spacing);
             mCrossAxisCount = Mathf.Max(1, crossAxisCount);
         }
 
@@ -140,9 +140,9 @@ namespace TristinWen.VirtualScroll
                 return;
             }
 
-            var first = Mathf.Max(0, FindIndex(startOffset) - Mathf.Max(0, overscan) * mCrossAxisCount);
+            var first        = Mathf.Max(0, FindIndex(startOffset) - Mathf.Max(0, overscan) * mCrossAxisCount);
             var lastRowFirst = FindIndex(endOffset) + Mathf.Max(0, overscan) * mCrossAxisCount;
-            var last = Mathf.Min(mCount - 1, lastRowFirst + mCrossAxisCount - 1);
+            var last         = Mathf.Min(mCount - 1, lastRowFirst + mCrossAxisCount - 1);
             for (var index = first; index <= last; index++)
             {
                 results.Add(index);

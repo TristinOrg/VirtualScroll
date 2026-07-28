@@ -309,7 +309,7 @@ namespace TristinWen.VirtualScroll
             UpdateContentSize();
             ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
             mAnimatedInsertFirst = animate && AnimateChanges ? index : -1;
-            mAnimatedInsertEnd = mAnimatedInsertFirst >= 0 ? index + count : -1;
+            mAnimatedInsertEnd   = mAnimatedInsertFirst >= 0 ? index + count : -1;
             RefreshVisible(true);
             ClearPendingInsertionAnimation();
         }
@@ -371,12 +371,12 @@ namespace TristinWen.VirtualScroll
             CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
             RemapActiveForMove(oldIndex, newIndex);
             var movedSlotWasActive = mActiveSlots.ContainsKey(newIndex);
-            anchorIndex = RemapMovedIndex(anchorIndex, oldIndex, newIndex);
+            anchorIndex            = RemapMovedIndex(anchorIndex, oldIndex, newIndex);
             RebuildSizeIndex();
             UpdateContentSize();
             ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
             mAnimatedInsertFirst = animate && AnimateChanges ? newIndex : -1;
-            mAnimatedInsertEnd = mAnimatedInsertFirst >= 0 ? newIndex + 1 : -1;
+            mAnimatedInsertEnd   = mAnimatedInsertFirst >= 0 ? newIndex + 1 : -1;
             RefreshVisible(true);
             if (movedSlotWasActive && mAnimatedInsertFirst >= 0 && mActiveSlots.TryGetValue(newIndex, out var movedSlot))
             {
@@ -457,8 +457,8 @@ namespace TristinWen.VirtualScroll
             }
 
             var validIndex = Mathf.Clamp(index, 0, mSizeIndex.Count - 1);
-            var offset = GetItemMainOffset(validIndex);
-            var freeSpace = Mathf.Max(0f, GetViewportSize() - mSizeIndex.GetSize(validIndex));
+            var offset     = GetItemMainOffset(validIndex);
+            var freeSpace  = Mathf.Max(0f, GetViewportSize() - mSizeIndex.GetSize(validIndex));
             if (alignment == EVirtualScrollAlignment.Center)
             {
                 offset -= freeSpace * 0.5f;
@@ -551,7 +551,7 @@ namespace TristinWen.VirtualScroll
         /// <param name="anchorDelta">Offset relative to the anchor start.</param>
         private void CapturePosition(out float offset, out int anchorIndex, out float anchorDelta)
         {
-            offset = GetScrollOffset();
+            offset      = GetScrollOffset();
             anchorIndex = mSizeIndex is null || mSizeIndex.Count == 0 ? -1 : Mathf.Max(0, mSizeIndex.FindIndex(Mathf.Max(0f, offset - GetMainStartPadding())));
             anchorDelta = anchorIndex < 0 ? 0f : offset - GetItemMainOffset(anchorIndex);
         }
@@ -573,7 +573,7 @@ namespace TristinWen.VirtualScroll
             else if (positionMode == EVirtualScrollPositionMode.KeepAnchor && mSizeIndex.Count > 0)
             {
                 var validAnchor = Mathf.Clamp(anchorIndex, 0, mSizeIndex.Count - 1);
-                offset = GetItemMainOffset(validAnchor) + anchorDelta;
+                offset          = GetItemMainOffset(validAnchor) + anchorDelta;
             }
             else if (positionMode == EVirtualScrollPositionMode.StickToEnd)
             {
@@ -710,7 +710,7 @@ namespace TristinWen.VirtualScroll
         private void ClearPendingInsertionAnimation()
         {
             mAnimatedInsertFirst = -1;
-            mAnimatedInsertEnd = -1;
+            mAnimatedInsertEnd   = -1;
         }
 
         /// <summary>
@@ -718,15 +718,15 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         private void ConfigureTransforms()
         {
-            vertical = Direction == EVirtualScrollDirection.Vertical;
-            horizontal = Direction == EVirtualScrollDirection.Horizontal;
+            vertical          = Direction == EVirtualScrollDirection.Vertical;
+            horizontal        = Direction == EVirtualScrollDirection.Horizontal;
             mResolvedViewport = viewport ? viewport : transform as RectTransform;
             CaptureAndDisableLayoutGroup();
-            vertical = Direction == EVirtualScrollDirection.Vertical;
-            horizontal = Direction == EVirtualScrollDirection.Horizontal;
+            vertical          = Direction == EVirtualScrollDirection.Vertical;
+            horizontal        = Direction == EVirtualScrollDirection.Horizontal;
             content.anchorMin = Vector2.up;
             content.anchorMax = Vector2.up;
-            content.pivot = Vector2.up;
+            content.pivot     = Vector2.up;
         }
 
         /// <summary>
@@ -789,12 +789,12 @@ namespace TristinWen.VirtualScroll
             }
             mDesiredIndexSet.Clear();
             var first = mSizeIndex.Count;
-            var last = -1;
+            var last  = -1;
             foreach (var index in mDesiredIndices)
             {
                 mDesiredIndexSet.Add(index);
                 first = Mathf.Min(first, index);
-                last = Mathf.Max(last, index);
+                last  = Mathf.Max(last, index);
             }
 
             if (!forcePosition && IsDesiredSetActive())
@@ -812,7 +812,7 @@ namespace TristinWen.VirtualScroll
             }
 
             mFirstVisible = first;
-            mLastVisible = last;
+            mLastVisible  = last;
             PositionActiveItems();
         }
 
@@ -823,7 +823,7 @@ namespace TristinWen.VirtualScroll
         private void CreateVisibleSlot(int index)
         {
             var itemType = mDataSource.GetItemType(index);
-            var item = GetPooledItem(itemType);
+            var item     = GetPooledItem(itemType);
             if (!item)
             {
                 item = mDataSource.CreateItem(itemType, content);
@@ -838,12 +838,12 @@ namespace TristinWen.VirtualScroll
             item.SetParent(content, false);
             item.anchorMin = Vector2.up;
             item.anchorMax = Vector2.up;
-            item.pivot = Vector2.up;
+            item.pivot     = Vector2.up;
             item.gameObject.SetActive(true);
 
-            var slot = mSlotPool.Count > 0 ? mSlotPool.Pop() : new VirtualScrollSlot();
-            slot.Item = item;
-            slot.Index = index;
+            var slot      = mSlotPool.Count > 0 ? mSlotPool.Pop() : new VirtualScrollSlot();
+            slot.Item     = item;
+            slot.Index    = index;
             slot.ItemType = itemType;
             slot.AnimationVersion++;
             mActiveSlots.Add(index, slot);
@@ -877,14 +877,14 @@ namespace TristinWen.VirtualScroll
         /// <param name="slot">Active slot to position.</param>
         private void PositionSlot(VirtualScrollSlot slot)
         {
-            var offset = GetItemMainOffset(slot.Index);
-            var size = mSizeIndex.GetSize(slot.Index);
-            var crossAxisCount = Mathf.Max(1, mSizeIndex.CrossAxisCount);
+            var offset             = GetItemMainOffset(slot.Index);
+            var size               = mSizeIndex.GetSize(slot.Index);
+            var crossAxisCount     = Mathf.Max(1, mSizeIndex.CrossAxisCount);
             var availableCrossSize = Mathf.Max(0.01f, GetViewportCrossAxisSize() - GetCrossStartPadding() - GetCrossEndPadding());
-            var crossAxisSize = mLayoutSnapshot != null && mLayoutSnapshot.HasFixedCrossSize ? mLayoutSnapshot.FixedCrossSize : Mathf.Max(0.01f, (availableCrossSize - (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing)) / crossAxisCount);
-            var occupiedCrossSize = crossAxisCount * crossAxisSize + (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing);
-            var alignmentOffset = mLayoutSnapshot is null ? 0f : Mathf.Max(0f, availableCrossSize - occupiedCrossSize) * mLayoutSnapshot.GetCrossAlignmentFactor();
-            var crossAxisIndex = mSizeIndex.GetCrossAxisIndex(slot.Index);
+            var crossAxisSize      = mLayoutSnapshot != null && mLayoutSnapshot.HasFixedCrossSize ? mLayoutSnapshot.FixedCrossSize : Mathf.Max(0.01f, (availableCrossSize - (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing)) / crossAxisCount);
+            var occupiedCrossSize  = crossAxisCount * crossAxisSize + (crossAxisCount - 1) * Mathf.Max(0f, CrossAxisSpacing);
+            var alignmentOffset    = mLayoutSnapshot is null ? 0f : Mathf.Max(0f, availableCrossSize - occupiedCrossSize) * mLayoutSnapshot.GetCrossAlignmentFactor();
+            var crossAxisIndex     = mSizeIndex.GetCrossAxisIndex(slot.Index);
             if (mLayoutSnapshot != null && mLayoutSnapshot.ReverseCrossAxis)
             {
                 crossAxisIndex = crossAxisCount - crossAxisIndex - 1;
@@ -964,7 +964,7 @@ namespace TristinWen.VirtualScroll
             }
 
             mFirstVisible = -1;
-            mLastVisible = -1;
+            mLastVisible  = -1;
         }
 
         /// <summary>
@@ -997,9 +997,9 @@ namespace TristinWen.VirtualScroll
             }
 
             pool.Push(slot.Item);
-            slot.Item = null;
-            slot.Index = -1;
-            slot.ItemType = 0;
+            slot.Item        = null;
+            slot.Index       = -1;
+            slot.ItemType    = 0;
             slot.CanvasGroup = null;
             slot.AnimationVersion++;
             slot.RestingScale = Vector3.one;
@@ -1029,7 +1029,7 @@ namespace TristinWen.VirtualScroll
         {
             PrepareAnimatedItem(slot);
             var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
-            var elapsed = 0f;
+            var elapsed  = 0f;
             while (elapsed < duration)
             {
                 if (!IsActiveAnimationCurrent(slot, version))
@@ -1037,9 +1037,9 @@ namespace TristinWen.VirtualScroll
                     yield break;
                 }
 
-                elapsed += Time.unscaledDeltaTime;
-                var progress = Mathf.Clamp01(elapsed / duration);
-                slot.Item.localScale = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
+                elapsed                += Time.unscaledDeltaTime;
+                var progress           = Mathf.Clamp01(elapsed / duration);
+                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
                 slot.CanvasGroup.alpha = Mathf.Lerp(0f, slot.RestingAlpha, progress);
                 yield return null;
             }
@@ -1059,7 +1059,7 @@ namespace TristinWen.VirtualScroll
         private IEnumerator AnimateRemoval(VirtualScrollSlot slot, int version)
         {
             var duration = Mathf.Max(0.01f, ChangeAnimationDuration);
-            var elapsed = 0f;
+            var elapsed  = 0f;
             while (elapsed < duration)
             {
                 if (slot.AnimationVersion != version || !mAnimatingRemovalSlots.Contains(slot))
@@ -1067,9 +1067,9 @@ namespace TristinWen.VirtualScroll
                     yield break;
                 }
 
-                elapsed += Time.unscaledDeltaTime;
-                var progress = Mathf.Clamp01(elapsed / duration);
-                slot.Item.localScale = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
+                elapsed                += Time.unscaledDeltaTime;
+                var progress           = Mathf.Clamp01(elapsed / duration);
+                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
                 slot.CanvasGroup.alpha = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
                 yield return null;
             }
@@ -1113,7 +1113,7 @@ namespace TristinWen.VirtualScroll
 
             if (slot.CanvasGroup)
             {
-                slot.Item.localScale = slot.RestingScale;
+                slot.Item.localScale   = slot.RestingScale;
                 slot.CanvasGroup.alpha = slot.RestingAlpha;
             }
         }
@@ -1179,7 +1179,7 @@ namespace TristinWen.VirtualScroll
             }
 
             mUpdatingLayout = true;
-            var size = content.sizeDelta;
+            var size        = content.sizeDelta;
             if (Direction == EVirtualScrollDirection.Vertical)
             {
                 size.x = mResolvedViewport.rect.width;
@@ -1192,7 +1192,7 @@ namespace TristinWen.VirtualScroll
             }
 
             content.sizeDelta = size;
-            mUpdatingLayout = false;
+            mUpdatingLayout   = false;
         }
 
         /// <summary>

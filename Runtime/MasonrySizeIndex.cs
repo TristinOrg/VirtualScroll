@@ -65,7 +65,7 @@ namespace TristinWen.VirtualScroll
         /// <param name="estimatedSize">Initial size used for items that have not been measured.</param>
         public MasonrySizeIndex(IVirtualScrollDataSource dataSource, float spacing, int crossAxisCount, float estimatedSize)
         {
-            var count = Mathf.Max(0, dataSource.Count);
+            var count    = Mathf.Max(0, dataSource.Count);
             mDataSource  = dataSource;
             mSpacing     = Mathf.Max(0f, spacing);
             mSizes       = new float[count];
@@ -82,10 +82,10 @@ namespace TristinWen.VirtualScroll
             var validEstimatedSize = Mathf.Max(0.01f, estimatedSize);
             for (var index = 0; index < count; index++)
             {
-                var lane           = GetShortestLane(laneSizes);
-                mSizes[index]      = validEstimatedSize;
-                mOffsets[index]    = laneSizes[lane];
-                mLanes[index]      = lane;
+                var lane        = GetShortestLane(laneSizes);
+                mSizes[index]   = validEstimatedSize;
+                mOffsets[index] = laneSizes[lane];
+                mLanes[index]   = lane;
                 mLaneIndices[lane].Add(index);
                 laneSizes[lane] += validEstimatedSize + mSpacing;
             }
@@ -305,12 +305,12 @@ namespace TristinWen.VirtualScroll
                 return -1;
             }
 
-            var low = 0;
+            var low  = 0;
             var high = items.Count - 1;
             while (low < high)
             {
                 var middle = low + (high - low) / 2;
-                var index = items[middle];
+                var index  = items[middle];
                 if (mOffsets[index] + mSizes[index] < offset)
                 {
                     low = middle + 1;
@@ -373,7 +373,7 @@ namespace TristinWen.VirtualScroll
                 }
 
                 var lastIndex = laneItems[laneItems.Count - 1];
-                mTotalSize = Mathf.Max(mTotalSize, mOffsets[lastIndex] + mSizes[lastIndex]);
+                mTotalSize    = Mathf.Max(mTotalSize, mOffsets[lastIndex] + mSizes[lastIndex]);
             }
         }
     }

@@ -64,7 +64,7 @@ namespace TristinWen.VirtualScroll
                 return Snapshot;
             }
 
-            IsCompleted = true;
+            IsCompleted     = true;
             var layoutGroup = content.GetComponent<LayoutGroup>();
             if (!layoutGroup)
             {
@@ -78,15 +78,15 @@ namespace TristinWen.VirtualScroll
                 return null;
             }
 
-            mLayoutGroup = layoutGroup;
+            mLayoutGroup           = layoutGroup;
             mLayoutGroupWasEnabled = layoutGroup.enabled;
-            Snapshot = snapshot;
-            layoutGroup.enabled = false;
-            mContentSizeFitter = content.GetComponent<ContentSizeFitter>();
+            Snapshot               = snapshot;
+            layoutGroup.enabled    = false;
+            mContentSizeFitter     = content.GetComponent<ContentSizeFitter>();
             if (mContentSizeFitter)
             {
                 mContentSizeFitterWasEnabled = mContentSizeFitter.enabled;
-                mContentSizeFitter.enabled = false;
+                mContentSizeFitter.enabled   = false;
             }
 
             return snapshot;
@@ -98,7 +98,7 @@ namespace TristinWen.VirtualScroll
         public void Reset()
         {
             Restore();
-            IsCompleted = false;
+            IsCompleted            = false;
             UnsupportedLayoutGroup = null;
         }
 
@@ -117,9 +117,9 @@ namespace TristinWen.VirtualScroll
                 mContentSizeFitter.enabled = mContentSizeFitterWasEnabled;
             }
 
-            mLayoutGroup = null;
+            mLayoutGroup       = null;
             mContentSizeFitter = null;
-            Snapshot = null;
+            Snapshot           = null;
         }
     }
 }
