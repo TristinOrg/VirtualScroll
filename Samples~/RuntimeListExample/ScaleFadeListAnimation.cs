@@ -83,7 +83,7 @@ namespace TristinWen.VirtualScroll.Sample
                     continue;
                 }
 
-                state.Elapsed += Time.unscaledDeltaTime;
+                state.Elapsed += Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime);
                 var progress   = Mathf.Clamp01(state.Elapsed / state.Context.Duration);
                 var eased      = progress * progress * (3f - 2f * progress);
                 Evaluate(state, eased);

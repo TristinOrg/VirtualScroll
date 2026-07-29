@@ -204,6 +204,11 @@ namespace TristinWen.VirtualScroll
         private int mLastAnimationId;
 
         /// <summary>
+        /// Prevents synchronous removal completion from applying layout before collection remapping finishes.
+        /// </summary>
+        private bool mDeferringRemovalLayoutApplication;
+
+        /// <summary>
         /// Captured parameters used after the source LayoutGroup is disabled.
         /// </summary>
         private VirtualScrollLayoutSnapshot mLayoutSnapshot;
@@ -382,7 +387,14 @@ namespace TristinWen.VirtualScroll
             }
 
             CapturePosition(out var oldOffset, out var anchorIndex, out var anchorDelta);
-            RemapActiveForRemoval(index, count, animate && AnimateChanges);
+            var deferRemovalLayout             = animate && AnimateChanges;
+            mDeferringRemovalLayoutApplication = deferRemovalLayout;
+            if (deferRemovalLayout)
+            {
+                CaptureDeferredRemovalLayout();
+            }
+
+            RemapActiveForRemoval(index, count, deferRemovalLayout);
             if (anchorIndex >= index + count)
             {
                 anchorIndex -= count;
@@ -397,6 +409,11 @@ namespace TristinWen.VirtualScroll
             UpdateContentSize();
             ApplyPositionMode(positionMode, oldOffset, anchorIndex, anchorDelta);
             RefreshVisible(true);
+            mDeferringRemovalLayoutApplication = false;
+            if (deferRemovalLayout && mAnimatingRemovalSlots.Count == 0)
+            {
+                ApplyDeferredRemovalLayout();
+            }
         }
 
         /// <summary>
@@ -939,7 +956,41 @@ namespace TristinWen.VirtualScroll
 
             foreach (var pair in mActiveSlots)
             {
-                PositionSlot(pair.Value);
+                if (!pair.Value.DeferLayoutPosition)
+                {
+                    PositionSlot(pair.Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Freezes current active positions while removed views play above the retained layout.
+        /// </summary>
+        private void CaptureDeferredRemovalLayout()
+        {
+            foreach (var pair in mActiveSlots)
+            {
+                var slot = pair.Value;
+                CompleteAnimation(slot, true);
+                slot.DeferLayoutPosition = true;
+            }
+        }
+
+        /// <summary>
+        /// Applies pending structural positions after all visible removal animations complete.
+        /// </summary>
+        private void ApplyDeferredRemovalLayout()
+        {
+            foreach (var pair in mActiveSlots)
+            {
+                var slot = pair.Value;
+                if (!slot.DeferLayoutPosition)
+                {
+                    continue;
+                }
+
+                slot.DeferLayoutPosition = false;
+                PositionSlot(slot);
             }
         }
 
@@ -1070,17 +1121,18 @@ namespace TristinWen.VirtualScroll
             }
 
             pool.Push(slot.Item);
-            slot.Item             = null;
-            slot.Index            = -1;
-            slot.ItemType         = 0;
-            slot.CanvasGroup      = null;
-            slot.Animation        = null;
-            slot.AnimationId      = 0;
-            slot.AnimationContext = default;
-            slot.IsAnimating      = false;
-            slot.AnimationElapsed = 0f;
-            slot.RestingScale     = Vector3.one;
-            slot.RestingAlpha     = 1f;
+            slot.Item                = null;
+            slot.Index               = -1;
+            slot.ItemType            = 0;
+            slot.CanvasGroup         = null;
+            slot.Animation           = null;
+            slot.AnimationId         = 0;
+            slot.AnimationContext    = default;
+            slot.IsAnimating         = false;
+            slot.AnimationElapsed    = 0f;
+            slot.RestingScale        = Vector3.one;
+            slot.RestingAlpha        = 1f;
+            slot.DeferLayoutPosition = false;
             mSlotPool.Push(slot);
         }
 
@@ -1194,7 +1246,7 @@ namespace TristinWen.VirtualScroll
             for (var i = mDefaultAnimationSlots.Count - 1; i >= 0; i--)
             {
                 var slot = mDefaultAnimationSlots[i];
-                slot.AnimationElapsed += Time.unscaledDeltaTime;
+                slot.AnimationElapsed += Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime);
                 var progress           = Mathf.Clamp01(slot.AnimationElapsed / slot.AnimationContext.Duration);
                 EvaluateDefaultAnimation(slot, progress);
                 if (progress >= 1f)
@@ -1256,6 +1308,10 @@ namespace TristinWen.VirtualScroll
             if (!canceled && animationType == EVirtualScrollAnimationType.Remove)
             {
                 UnbindAndPoolRemovalSlot(slot);
+                if (!mDeferringRemovalLayoutApplication && mAnimatingRemovalSlots.Count == 0)
+                {
+                    ApplyDeferredRemovalLayout();
+                }
             }
         }
 

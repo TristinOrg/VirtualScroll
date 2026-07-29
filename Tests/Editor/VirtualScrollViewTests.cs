@@ -339,6 +339,48 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies retained items move into removed space only after exit playback completes.
+        /// </summary>
+        [Test]
+        public void RemovalDefersRetainedItemLayoutUntilAnimationCompletes()
+        {
+            var scrollView                     = CreateScrollView();
+            var animationProvider              = new VirtualScrollAnimationTestProvider();
+            var dataSource                     = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.AnimateChanges          = true;
+            scrollView.Animation               = animationProvider;
+            scrollView.ChangeAnimationDuration = 10f;
+            scrollView.SetDataSource(dataSource);
+            var retainedItem = scrollView.content.Find("Test Item 1") as RectTransform;
+            Assert.AreEqual(new Vector2(0f, -50f), retainedItem.anchoredPosition);
+
+            dataSource.Count--;
+            scrollView.NotifyItemsRemoved(0, 1, EVirtualScrollPositionMode.KeepOffset);
+
+            Assert.AreEqual(new Vector2(0f, -50f), retainedItem.anchoredPosition);
+            animationProvider.CompleteLast();
+            Assert.AreEqual(Vector2.zero, retainedItem.anchoredPosition);
+        }
+
+        /// <summary>
+        /// Verifies disabling removal animation applies structural layout immediately.
+        /// </summary>
+        [Test]
+        public void NonAnimatedRemovalAppliesLayoutImmediately()
+        {
+            var scrollView            = CreateScrollView();
+            var dataSource            = new VirtualScrollViewTestDataSource { Count = 10 };
+            scrollView.AnimateChanges = true;
+            scrollView.SetDataSource(dataSource);
+            var retainedItem = scrollView.content.Find("Test Item 1") as RectTransform;
+
+            dataSource.Count--;
+            scrollView.NotifyItemsRemoved(0, 1, EVirtualScrollPositionMode.KeepOffset, false);
+
+            Assert.AreEqual(Vector2.zero, retainedItem.anchoredPosition);
+        }
+
+        /// <summary>
         /// Creates a vertical VirtualScrollView with a 300-by-300 viewport.
         /// </summary>
         /// <returns>Configured scroll view.</returns>

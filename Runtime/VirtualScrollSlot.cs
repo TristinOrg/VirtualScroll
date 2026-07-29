@@ -69,5 +69,10 @@ namespace TristinWen.VirtualScroll
         /// Canvas-group opacity restored after change animation.
         /// </summary>
         public float RestingAlpha = 1f;
+
+        /// <summary>
+        /// Whether structural positioning is deferred until visible removal playback completes.
+        /// </summary>
+        public bool DeferLayoutPosition;
     }
 }

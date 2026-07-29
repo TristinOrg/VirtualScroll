@@ -174,7 +174,7 @@ Import **Runtime List Example** from Package Manager, then configure a GameObjec
 4. Enter Play Mode.
 5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
 
-The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. The example applies its `AnimationDuration` value (`0.6` seconds by default) to make playback easy to observe. It supports concurrent items, uses no coroutines, advances with `Time.unscaledDeltaTime`, and restores position, scale, and opacity before pooled reuse.
+The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. The example applies its `AnimationDuration` value (`0.6` seconds by default) to make playback easy to observe. It supports concurrent items, uses no coroutines, clamps each unscaled-time step to `Time.maximumDeltaTime`, and restores position, scale, and opacity before pooled reuse.
 
 `RuntimeListExample.AnimationProvider` accepts any `MonoBehaviour`. The assigned component must implement `IVirtualScrollAnimation`, so the same field can be used with the included sample, PrimeTween, DOTween, Animator, or a project-specific provider.
 
@@ -206,7 +206,7 @@ Implement `IVirtualScrollAnimation` when a project wants DOTween, PrimeTween, An
 
 If a configured component does not implement `IVirtualScrollAnimation`, the scroll view logs an error and skips that collection animation. It does not silently substitute the built-in scale-and-fade presentation. Leave the provider empty explicitly when the built-in animation is desired.
 
-Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views retain their existing binding, remain materialized, and render above replacement views until `context.Complete()` is called. `UnbindItem` runs only after the removal animation completes.
+Before `Play` is called, `VirtualScrollView` has already applied the item's resting layout. While `Play` owns the presentation, the current visibility refresh does not overwrite the provider's insertion position. Removed views retain their existing binding, remain materialized, and render above replacement views until `context.Complete()` is called. Retained items keep their previous positions during removal playback and move into the released space only after the final visible removal completes. `UnbindItem` runs only after the removal animation completes.
 
 ```csharp
 public sealed class CustomListAnimation : MonoBehaviour, IVirtualScrollAnimation
