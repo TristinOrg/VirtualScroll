@@ -14,8 +14,13 @@ namespace TristinWen.VirtualScroll.Sample
     /// <summary>
     /// Stores references used while binding a generated sample item.
     /// </summary>
-    public sealed class RuntimeListItem : MonoBehaviour
+    public sealed class RuntimeListItem : MonoBehaviour, IVirtualScrollItem
     {
+        /// <summary>
+        /// Gets the RectTransform controlled by the virtual scroll view.
+        /// </summary>
+        public RectTransform Transform => transform as RectTransform;
+
         /// <summary>
         /// Generated item label.
         /// </summary>

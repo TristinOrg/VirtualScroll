@@ -39,6 +39,17 @@ namespace TristinWen.VirtualScroll.Sample
         public int ItemCount = 100000;
 
         /// <summary>
+        /// Item index used by the Scroll To Item context-menu action.
+        /// </summary>
+        [Min(0)]
+        public int TargetIndex = 500;
+
+        /// <summary>
+        /// Viewport alignment used by the Scroll To Item context-menu action.
+        /// </summary>
+        public EVirtualScrollAlignment TargetAlignment = EVirtualScrollAlignment.Center;
+
+        /// <summary>
         /// Cached built-in font shared by generated labels.
         /// </summary>
         private static Font sRuntimeFont;
@@ -58,7 +69,7 @@ namespace TristinWen.VirtualScroll.Sample
                 return;
             }
 
-            ScrollView.AnimateChanges = true;
+            ScrollView.AnimateChanges          = true;
             ScrollView.ChangeAnimationDuration = AnimationDuration;
             if (!ScrollView.AnimationProvider && AnimationProvider)
             {
@@ -111,6 +122,21 @@ namespace TristinWen.VirtualScroll.Sample
         }
 
         /// <summary>
+        /// Positions the configured target item inside the viewport.
+        /// </summary>
+        [ContextMenu("Scroll To Item")]
+        public void ScrollToItem()
+        {
+            if (!Application.isPlaying || !ScrollView || ItemCount <= 0)
+            {
+                return;
+            }
+
+            var index = Mathf.Clamp(TargetIndex, 0, ItemCount - 1);
+            ScrollView.ScrollToIndex(index, TargetAlignment);
+        }
+
+        /// <summary>
         /// Gets the single sample item type.
         /// </summary>
         /// <param name="index">Data index.</param>
@@ -135,11 +161,12 @@ namespace TristinWen.VirtualScroll.Sample
         /// </summary>
         /// <param name="itemType">Item type.</param>
         /// <param name="parent">Content transform.</param>
-        /// <returns>Created item RectTransform.</returns>
-        public RectTransform CreateItem(int itemType, Transform parent)
+        /// <returns>Created reusable item.</returns>
+        public IVirtualScrollItem CreateItem(int itemType, Transform parent)
         {
             var itemObject = new GameObject("Virtual Item", typeof(RectTransform), typeof(Image), typeof(RuntimeListItem));
             var item       = itemObject.transform as RectTransform;
+            var itemView   = itemObject.GetComponent<RuntimeListItem>();
             item.SetParent(parent, false);
             var image       = itemObject.GetComponent<Image>();
             image.color     = new Color(0.12f, 0.14f, 0.18f, 1f);
@@ -156,8 +183,8 @@ namespace TristinWen.VirtualScroll.Sample
             label.color              = Color.white;
             label.alignment          = TextAnchor.MiddleLeft;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
-            itemObject.GetComponent<RuntimeListItem>().Label = label;
-            return item;
+            itemView.Label           = label;
+            return itemView;
         }
 
         /// <summary>
@@ -184,9 +211,9 @@ namespace TristinWen.VirtualScroll.Sample
         /// </summary>
         /// <param name="item">Recycled item.</param>
         /// <param name="index">Data index.</param>
-        public void BindItem(RectTransform item, int index)
+        public void BindItem(IVirtualScrollItem item, int index)
         {
-            var label  = item.GetComponent<RuntimeListItem>().Label;
+            var label  = ((RuntimeListItem)item).Label;
             label.text = $"  Item {index:N0} — variable content line {index % 5 + 1}";
         }
 
@@ -195,9 +222,9 @@ namespace TristinWen.VirtualScroll.Sample
         /// </summary>
         /// <param name="item">Recycled item.</param>
         /// <param name="index">Previous data index.</param>
-        public void UnbindItem(RectTransform item, int index)
+        public void UnbindItem(IVirtualScrollItem item, int index)
         {
-            var label  = item.GetComponent<RuntimeListItem>().Label;
+            var label  = ((RuntimeListItem)item).Label;
             label.text = string.Empty;
         }
     }

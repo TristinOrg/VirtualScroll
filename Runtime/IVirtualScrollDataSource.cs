@@ -39,21 +39,21 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         /// <param name="itemType">Pool type identifier returned by <see cref="GetItemType"/>.</param>
         /// <param name="parent">Content transform that owns the item.</param>
-        /// <returns>Created item RectTransform.</returns>
-        RectTransform CreateItem(int itemType, Transform parent);
+        /// <returns>Created reusable item.</returns>
+        IVirtualScrollItem CreateItem(int itemType, Transform parent);
 
         /// <summary>
         /// Binds an item instance to a data index.
         /// </summary>
         /// <param name="item">Reusable item instance.</param>
         /// <param name="index">Data index.</param>
-        void BindItem(RectTransform item, int index);
+        void BindItem(IVirtualScrollItem item, int index);
 
         /// <summary>
         /// Clears transient state before an item returns to its pool.
         /// </summary>
         /// <param name="item">Reusable item instance.</param>
         /// <param name="index">Previous data index.</param>
-        void UnbindItem(RectTransform item, int index);
+        void UnbindItem(IVirtualScrollItem item, int index);
     }
 }

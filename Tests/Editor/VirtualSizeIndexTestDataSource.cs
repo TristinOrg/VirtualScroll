@@ -66,7 +66,7 @@ namespace TristinWen.VirtualScroll.Tests
         /// <param name="itemType">Item type.</param>
         /// <param name="parent">Parent transform.</param>
         /// <returns>Never returns.</returns>
-        public RectTransform CreateItem(int itemType, Transform parent)
+        public IVirtualScrollItem CreateItem(int itemType, Transform parent)
         {
             throw new System.NotSupportedException();
         }
@@ -76,7 +76,7 @@ namespace TristinWen.VirtualScroll.Tests
         /// </summary>
         /// <param name="item">Item view.</param>
         /// <param name="index">Data index.</param>
-        public void BindItem(RectTransform item, int index)
+        public void BindItem(IVirtualScrollItem item, int index)
         {
         }
 
@@ -85,7 +85,7 @@ namespace TristinWen.VirtualScroll.Tests
         /// </summary>
         /// <param name="item">Item view.</param>
         /// <param name="index">Data index.</param>
-        public void UnbindItem(RectTransform item, int index)
+        public void UnbindItem(IVirtualScrollItem item, int index)
         {
         }
     }

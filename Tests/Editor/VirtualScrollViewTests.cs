@@ -72,6 +72,26 @@ namespace TristinWen.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Demonstrates positioning an item at the start, center, and end of the viewport.
+        /// </summary>
+        [Test]
+        public void ScrollToIndexSupportsViewportAlignment()
+        {
+            var scrollView = CreateScrollView();
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 100 };
+            scrollView.SetDataSource(dataSource);
+
+            scrollView.ScrollToIndex(20, EVirtualScrollAlignment.Start);
+            Assert.AreEqual(1000f, scrollView.content.anchoredPosition.y, 0.001f);
+
+            scrollView.ScrollToIndex(20, EVirtualScrollAlignment.Center);
+            Assert.AreEqual(875f, scrollView.content.anchoredPosition.y, 0.001f);
+
+            scrollView.ScrollToIndex(20, EVirtualScrollAlignment.End);
+            Assert.AreEqual(750f, scrollView.content.anchoredPosition.y, 0.001f);
+        }
+
+        /// <summary>
         /// Verifies inserting data above the viewport preserves the same logical anchor item.
         /// </summary>
         [Test]

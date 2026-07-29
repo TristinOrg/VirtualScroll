@@ -116,7 +116,7 @@ namespace TristinWen.VirtualScroll
         /// <summary>
         /// Reusable views grouped by item type.
         /// </summary>
-        private readonly Dictionary<int, Stack<RectTransform>> mPools = new();
+        private readonly Dictionary<int, Stack<IVirtualScrollItem>> mPools = new();
 
         /// <summary>
         /// Reusable slot metadata retained after views leave the viewport.
@@ -899,9 +899,9 @@ namespace TristinWen.VirtualScroll
         {
             foreach (var slot in mAnimatingRemovalSlots)
             {
-                if (slot.Item)
+                if (slot.Transform)
                 {
-                    slot.Item.SetAsLastSibling();
+                    slot.Transform.SetAsLastSibling();
                 }
             }
         }
@@ -914,27 +914,28 @@ namespace TristinWen.VirtualScroll
         {
             var itemType = mDataSource.GetItemType(index);
             var item     = GetPooledItem(itemType);
-            if (!item)
+            if (item is null)
             {
                 item = mDataSource.CreateItem(itemType, content);
             }
 
-            if (!item)
+            if (!TryGetItemTransform(item, out var itemTransform))
             {
-                Debug.LogError($"VirtualScrollView data source returned no item for type {itemType}.", this);
+                Debug.LogError($"VirtualScrollView data source returned an invalid item for type {itemType}.", this);
                 return;
             }
 
-            item.SetParent(content, false);
-            item.anchorMin = Vector2.up;
-            item.anchorMax = Vector2.up;
-            item.pivot     = Vector2.up;
-            item.gameObject.SetActive(true);
+            itemTransform.SetParent(content, false);
+            itemTransform.anchorMin = Vector2.up;
+            itemTransform.anchorMax = Vector2.up;
+            itemTransform.pivot     = Vector2.up;
+            itemTransform.gameObject.SetActive(true);
 
-            var slot      = mSlotPool.Count > 0 ? mSlotPool.Pop() : new VirtualScrollSlot();
-            slot.Item     = item;
-            slot.Index    = index;
-            slot.ItemType = itemType;
+            var slot       = mSlotPool.Count > 0 ? mSlotPool.Pop() : new VirtualScrollSlot();
+            slot.Item      = item;
+            slot.Transform = itemTransform;
+            slot.Index     = index;
+            slot.ItemType  = itemType;
             mActiveSlots.Add(index, slot);
             PositionSlot(slot);
             mDataSource.BindItem(item, index);
@@ -1016,15 +1017,15 @@ namespace TristinWen.VirtualScroll
             var crossOffset = GetCrossStartPadding() + alignmentOffset + crossAxisIndex * (crossAxisSize + Mathf.Max(0f, CrossAxisSpacing));
             if (Direction == EVirtualScrollDirection.Vertical)
             {
-                slot.Item.anchoredPosition = new Vector2(crossOffset, -offset);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, crossAxisSize);
+                slot.Transform.anchoredPosition = new Vector2(crossOffset, -offset);
+                slot.Transform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
+                slot.Transform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, crossAxisSize);
             }
             else
             {
-                slot.Item.anchoredPosition = new Vector2(offset, -crossOffset);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
-                slot.Item.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, crossAxisSize);
+                slot.Transform.anchoredPosition = new Vector2(offset, -crossOffset);
+                slot.Transform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
+                slot.Transform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, crossAxisSize);
             }
         }
 
@@ -1113,15 +1114,16 @@ namespace TristinWen.VirtualScroll
         private void PoolDetachedSlot(VirtualScrollSlot slot)
         {
             CompleteAnimation(slot, true);
-            slot.Item.gameObject.SetActive(false);
+            slot.Transform.gameObject.SetActive(false);
             if (!mPools.TryGetValue(slot.ItemType, out var pool))
             {
-                pool = new Stack<RectTransform>();
+                pool = new Stack<IVirtualScrollItem>();
                 mPools.Add(slot.ItemType, pool);
             }
 
             pool.Push(slot.Item);
             slot.Item                = null;
+            slot.Transform           = null;
             slot.Index               = -1;
             slot.ItemType            = 0;
             slot.CanvasGroup         = null;
@@ -1166,7 +1168,7 @@ namespace TristinWen.VirtualScroll
             var duration          = Mathf.Max(0.01f, ChangeAnimationDuration);
             slot.Animation        = ResolveAnimationProvider(out var useBuiltInAnimation);
             slot.AnimationId      = GetNextAnimationId();
-            slot.AnimationContext = new VirtualScrollAnimationContext(slot.Item, animationType, duration, slot.AnimationId, this);
+            slot.AnimationContext = new VirtualScrollAnimationContext(slot.Transform, animationType, duration, slot.AnimationId, this);
             slot.IsAnimating      = true;
             slot.AnimationElapsed = 0f;
             mAnimatingSlots.Add(slot.AnimationId, slot);
@@ -1265,13 +1267,13 @@ namespace TristinWen.VirtualScroll
         {
             if (slot.AnimationContext.AnimationType == EVirtualScrollAnimationType.Insert)
             {
-                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
-                slot.CanvasGroup.alpha = Mathf.Lerp(0f, slot.RestingAlpha, progress);
+                slot.Transform.localScale = Vector3.Lerp(slot.RestingScale * 0.9f, slot.RestingScale, progress);
+                slot.CanvasGroup.alpha    = Mathf.Lerp(0f, slot.RestingAlpha, progress);
             }
             else
             {
-                slot.Item.localScale   = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
-                slot.CanvasGroup.alpha = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
+                slot.Transform.localScale = Vector3.Lerp(slot.RestingScale, slot.RestingScale * 0.9f, progress);
+                slot.CanvasGroup.alpha    = Mathf.Lerp(slot.RestingAlpha, 0f, progress);
             }
         }
 
@@ -1333,14 +1335,14 @@ namespace TristinWen.VirtualScroll
         {
             if (!slot.CanvasGroup)
             {
-                slot.CanvasGroup = slot.Item.GetComponent<CanvasGroup>();
+                slot.CanvasGroup = slot.Transform.GetComponent<CanvasGroup>();
                 if (!slot.CanvasGroup)
                 {
-                    slot.CanvasGroup = slot.Item.gameObject.AddComponent<CanvasGroup>();
+                    slot.CanvasGroup = slot.Transform.gameObject.AddComponent<CanvasGroup>();
                 }
             }
 
-            slot.RestingScale = slot.Item.localScale;
+            slot.RestingScale = slot.Transform.localScale;
             slot.RestingAlpha = slot.CanvasGroup.alpha;
         }
 
@@ -1350,15 +1352,15 @@ namespace TristinWen.VirtualScroll
         /// <param name="slot">Animated slot.</param>
         private static void ResetAnimatedItem(VirtualScrollSlot slot)
         {
-            if (!slot.Item)
+            if (!slot.Transform)
             {
                 return;
             }
 
             if (slot.CanvasGroup)
             {
-                slot.Item.localScale   = slot.RestingScale;
-                slot.CanvasGroup.alpha = slot.RestingAlpha;
+                slot.Transform.localScale = slot.RestingScale;
+                slot.CanvasGroup.alpha    = slot.RestingAlpha;
             }
         }
 
@@ -1392,7 +1394,7 @@ namespace TristinWen.VirtualScroll
         /// </summary>
         /// <param name="itemType">Pool type identifier.</param>
         /// <returns>Reusable view, or null when the pool is empty.</returns>
-        private RectTransform GetPooledItem(int itemType)
+        private IVirtualScrollItem GetPooledItem(int itemType)
         {
             if (!mPools.TryGetValue(itemType, out var pool))
             {
@@ -1402,13 +1404,31 @@ namespace TristinWen.VirtualScroll
             while (pool.Count > 0)
             {
                 var item = pool.Pop();
-                if (item)
+                if (TryGetItemTransform(item, out _))
                 {
                     return item;
                 }
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves and validates the presentation transform exposed by an item.
+        /// </summary>
+        /// <param name="item">Item contract to validate.</param>
+        /// <param name="itemTransform">Resolved presentation transform.</param>
+        /// <returns>True when both the item and its transform are valid.</returns>
+        private static bool TryGetItemTransform(IVirtualScrollItem item, out RectTransform itemTransform)
+        {
+            itemTransform = null;
+            if (item is null || item is Object unityItem && !unityItem)
+            {
+                return false;
+            }
+
+            itemTransform = item.Transform;
+            return itemTransform;
         }
 
         /// <summary>

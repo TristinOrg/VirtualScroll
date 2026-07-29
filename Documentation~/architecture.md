@@ -2,7 +2,7 @@
 
 `VirtualScrollView` separates three responsibilities:
 
-- `IVirtualScrollDataSource` owns data binding and view creation.
+- `IVirtualScrollDataSource` owns data binding and `IVirtualScrollItem` creation.
 - `IVirtualSizeIndex` maps indices to offsets.
 - `VirtualScrollView` owns viewport range calculation, positioning, and typed pools.
 
@@ -18,7 +18,7 @@ Supported uGUI LayoutGroups are authoring inputs rather than runtime layout engi
 
 ## Item ownership
 
-The data source creates item GameObjects, while the scroll view owns their active and pooled lifetime. `BindItem` must fully derive presentation from the supplied index. `UnbindItem` must remove transient listeners, cancel item-owned asynchronous work, and reset state that should not survive reuse.
+The data source creates `IVirtualScrollItem` instances, while the scroll view owns their active and pooled lifetime. Each item exposes one stable root `RectTransform`; the scroll view caches that transform when materializing the item and uses the interface itself for binding and typed pooling. `BindItem` can cast directly to the data source's known view type without repeating `GetComponent`. It must fully derive presentation from the supplied index. `UnbindItem` must remove transient listeners, cancel item-owned asynchronous work, and reset state that should not survive reuse.
 
 ## Canvas guidance
 

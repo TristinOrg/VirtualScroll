@@ -43,7 +43,7 @@ https://github.com/TristinOrg/VirtualScroll.git#v1.0.0
 2. Replace its `ScrollRect` component with `VirtualScrollView`.
 3. Keep the content reference assigned. Viewport may be assigned explicitly or left empty to use the component RectTransform.
 4. A supported `LayoutGroup` may remain on the content for familiar authoring. Its parameters are captured and the component is disabled at runtime. A matching `ContentSizeFitter` is also disabled while virtual layout owns content size.
-5. Implement `IVirtualScrollDataSource` and call `SetDataSource` after your data is ready.
+5. Add an `IVirtualScrollItem` component to the item prefab, implement `IVirtualScrollDataSource`, and call `SetDataSource` after your data is ready.
 
 Initialization can explicitly select its starting position behavior:
 
@@ -58,10 +58,25 @@ ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.StickToEnd);
 using TristinWen.VirtualScroll;
 using UnityEngine;
 
+public sealed class MailListItem : MonoBehaviour, IVirtualScrollItem
+{
+    public RectTransform Transform => transform as RectTransform;
+
+    public void SetIndex(int index)
+    {
+        name = $"Mail {index}";
+    }
+
+    public void Clear()
+    {
+        name = "Pooled Mail";
+    }
+}
+
 public sealed class MailListPresenter : MonoBehaviour, IVirtualScrollDataSource
 {
     public VirtualScrollView ScrollView;
-    public RectTransform ItemPrefab;
+    public MailListItem ItemPrefab;
 
     public int Count => 10000;
 
@@ -82,21 +97,26 @@ public sealed class MailListPresenter : MonoBehaviour, IVirtualScrollDataSource
         return 72f + index % 4 * 24f;
     }
 
-    public RectTransform CreateItem(int itemType, Transform parent)
+    public IVirtualScrollItem CreateItem(int itemType, Transform parent)
     {
         return Instantiate(ItemPrefab, parent);
     }
 
-    public void BindItem(RectTransform item, int index)
+    public void BindItem(IVirtualScrollItem item, int index)
     {
-        item.name = $"Mail {index}";
+        ((MailListItem)item).SetIndex(index);
     }
 
-    public void UnbindItem(RectTransform item, int index)
+    public void UnbindItem(IVirtualScrollItem item, int index)
     {
+        ((MailListItem)item).Clear();
     }
 }
 ```
+
+`CreateItem` returns the component implementing `IVirtualScrollItem`, not its `RectTransform`. `VirtualScrollView` caches both the interface and its `Transform` when the item is materialized. `BindItem` and `UnbindItem` can therefore cast directly to the known view type without calling `GetComponent` on every reuse. The same interface instance is retained in the typed pool and supplied again on the next bind.
+
+`IVirtualScrollItem.Transform` must return the root `RectTransform` that the virtual scroll view is allowed to parent, position, size, activate, and recycle. Keep the returned transform stable for the lifetime of the item.
 
 ## Variable-height content
 
@@ -123,8 +143,12 @@ ScrollView.ReloadData(EVirtualScrollPositionMode.StickToEnd);
 ScrollView.RefreshItem(index);
 ScrollView.RefreshRange(startIndex, count);
 ScrollView.NotifyItemSizeChanged(index, newSize);
-ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.Center);
+ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.Start);  // Item starts at the viewport leading edge.
+ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.Center); // Item is centered in the viewport.
+ScrollView.ScrollToIndex(index, EVirtualScrollAlignment.End);    // Item ends at the viewport trailing edge.
 ```
+
+`ScrollToIndex` clamps the requested index and content offset to valid bounds. Near the beginning or end of the list, the exact visual alignment may therefore be limited by the available scroll range.
 
 The legacy convenience overload remains available:
 
@@ -172,7 +196,7 @@ Import **Runtime List Example** from Package Manager, then configure a GameObjec
 2. Assign the scene's `VirtualScrollView` to `RuntimeListExample.ScrollView`.
 3. Leave both provider fields empty to let the example add its default `SlideListAnimation`. `VirtualScrollView.AnimationProvider` has priority when configured; `RuntimeListExample.AnimationProvider` is only a fallback and cannot overwrite the ScrollView field.
 4. Enter Play Mode.
-5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item** or **Remove Visible Item**. The same public methods can be connected directly to uGUI Button `OnClick` events.
+5. Open the `RuntimeListExample` component context menu and select **Insert Visible Item**, **Remove Visible Item**, or **Scroll To Item**. Set `TargetIndex` and `TargetAlignment` before using the positioning action. The same public methods can be connected directly to uGUI Button `OnClick` events.
 
 The default provider is in `Samples~/RuntimeListExample/SlideListAnimation.cs`. Insertions move from right to left while fading from transparent to opaque and scaling from `CollapsedScale` to the resting scale. Removals perform the inverse presentation toward the left. The example applies its `AnimationDuration` value (`0.6` seconds by default) to make playback easy to observe. It supports concurrent items, uses no coroutines, clamps each unscaled-time step to `Time.maximumDeltaTime`, and restores position, scale, and opacity before pooled reuse.
 
@@ -193,6 +217,12 @@ public void RemoveVisibleItem()
     var index = Mathf.Clamp(ScrollView.FirstViewportIndex, 0, ItemCount - 1);
     ItemCount--;
     ScrollView.NotifyItemsRemoved(index, 1, EVirtualScrollPositionMode.KeepOffset);
+}
+
+public void ScrollToItem()
+{
+    var index = Mathf.Clamp(TargetIndex, 0, ItemCount - 1);
+    ScrollView.ScrollToIndex(index, TargetAlignment);
 }
 ```
 

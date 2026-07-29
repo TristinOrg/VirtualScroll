@@ -10,6 +10,8 @@
 - Added optional unscaled-time insertion and removal animations.
 - Added replaceable `IVirtualScrollAnimation` providers with provider-owned playback and stale-safe completion signaling.
 - Added a coroutine-free scale-and-fade sample with directly callable visible insertion and removal actions.
+- Added `IVirtualScrollItem` so data sources bind and pool typed item views without repeated component lookups.
+- Added a directly callable target-index positioning action to the runtime list sample.
 - Added fixed-size multi-lane grids and variable-size masonry layouts.
 - Added independent uniform main-axis and cross-axis spacing.
 - Added grid and masonry EditMode coverage.

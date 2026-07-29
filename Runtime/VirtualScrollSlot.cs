@@ -18,7 +18,12 @@ namespace TristinWen.VirtualScroll
         /// <summary>
         /// Bound view instance.
         /// </summary>
-        public RectTransform Item;
+        public IVirtualScrollItem Item;
+
+        /// <summary>
+        /// Cached presentation transform used by layout and animation hot paths.
+        /// </summary>
+        public RectTransform Transform;
 
         /// <summary>
         /// Bound data index.

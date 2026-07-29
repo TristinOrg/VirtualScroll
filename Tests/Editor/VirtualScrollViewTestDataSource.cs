@@ -51,13 +51,13 @@ namespace TristinWen.VirtualScroll.Tests
         /// </summary>
         /// <param name="itemType">Item type.</param>
         /// <param name="parent">Content transform.</param>
-        /// <returns>Created RectTransform.</returns>
-        public RectTransform CreateItem(int itemType, Transform parent)
+        /// <returns>Created reusable item.</returns>
+        public IVirtualScrollItem CreateItem(int itemType, Transform parent)
         {
-            var itemObject = new GameObject("Test Item", typeof(RectTransform));
-            var item       = itemObject.transform as RectTransform;
-            item.SetParent(parent, false);
-            return item;
+            var itemObject    = new GameObject("Test Item", typeof(RectTransform));
+            var itemTransform = itemObject.transform as RectTransform;
+            itemTransform.SetParent(parent, false);
+            return new VirtualScrollViewTestItem(itemTransform);
         }
 
         /// <summary>
@@ -65,9 +65,9 @@ namespace TristinWen.VirtualScroll.Tests
         /// </summary>
         /// <param name="item">Test item.</param>
         /// <param name="index">Data index.</param>
-        public void BindItem(RectTransform item, int index)
+        public void BindItem(IVirtualScrollItem item, int index)
         {
-            item.name = $"Test Item {index}";
+            item.Transform.name = $"Test Item {index}";
         }
 
         /// <summary>
@@ -75,9 +75,9 @@ namespace TristinWen.VirtualScroll.Tests
         /// </summary>
         /// <param name="item">Test item.</param>
         /// <param name="index">Previous data index.</param>
-        public void UnbindItem(RectTransform item, int index)
+        public void UnbindItem(IVirtualScrollItem item, int index)
         {
-            item.name = "Pooled Test Item";
+            item.Transform.name = "Pooled Test Item";
         }
     }
 }
