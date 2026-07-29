@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-29
+
 - Changed variable-size indexing to resolve `GetItemSize` lazily near the viewport instead of querying the entire data set during initialization.
 - Renamed `FixedItemSize` to `FixedMainAxisSize` with serialized-data migration and a source-compatible obsolete alias.
 - Added `EstimatedMainAxisSize` for unmeasured variable items and large-data-set request-count coverage.

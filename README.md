@@ -34,7 +34,7 @@ https://github.com/TristinOrg/VirtualScroll.git
 You can pin a release tag:
 
 ```text
-https://github.com/TristinOrg/VirtualScroll.git#v1.0.0
+https://github.com/TristinOrg/VirtualScroll.git#v1.1.0
 ```
 
 ## Setup
