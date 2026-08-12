@@ -251,6 +251,21 @@ namespace TristinOrg.VirtualScroll
         public int LastVisibleIndex => LastMaterializedIndex;
 
         /// <summary>
+        /// Gets the current data-source item count.
+        /// </summary>
+        public int ItemCount => mSizeIndex?.Count ?? 0;
+
+        /// <summary>
+        /// Gets the current positive main-axis scroll offset.
+        /// </summary>
+        public float ScrollOffset => GetScrollOffset();
+
+        /// <summary>
+        /// Gets the greatest legal main-axis scroll offset.
+        /// </summary>
+        public float MaxScrollOffset => GetMaxScrollOffset();
+
+        /// <summary>
         /// Gets or sets the legacy fixed main-axis size name.
         /// </summary>
         [System.Obsolete("Use FixedMainAxisSize instead.")]
@@ -537,6 +552,44 @@ namespace TristinOrg.VirtualScroll
 
             SetScrollOffset(Mathf.Clamp(offset, 0f, GetMaxScrollOffset()));
             RefreshVisible(true);
+        }
+
+        /// <summary>
+        /// Gets an item's main-axis offset including captured leading padding.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Item offset, or zero when the index is unavailable.</returns>
+        public float GetItemOffset(int index)
+        {
+            return mSizeIndex is null || index < 0 || index >= mSizeIndex.Count ? 0f : GetItemMainOffset(index);
+        }
+
+        /// <summary>
+        /// Gets an item's current main-axis size.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <returns>Item size, or zero when the index is unavailable.</returns>
+        public float GetItemSize(int index)
+        {
+            return mSizeIndex is null || index < 0 || index >= mSizeIndex.Count ? 0f : mSizeIndex.GetSize(index);
+        }
+
+        /// <summary>
+        /// Gets a currently materialized reusable item.
+        /// </summary>
+        /// <param name="index">Data index.</param>
+        /// <param name="item">Materialized item when available.</param>
+        /// <returns>True when the requested item is materialized.</returns>
+        public bool TryGetMaterializedItem(int index, out IVirtualScrollItem item)
+        {
+            if (mActiveSlots.TryGetValue(index, out var slot))
+            {
+                item = slot.Item;
+                return true;
+            }
+
+            item = null;
+            return false;
         }
 
         /// <summary>

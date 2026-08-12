@@ -92,6 +92,27 @@ namespace TristinOrg.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies extension queries expose layout geometry and materialized items without changing position.
+        /// </summary>
+        [Test]
+        public void ExtensionQueriesExposeCurrentLayoutState()
+        {
+            var scrollView = CreateScrollView();
+            var dataSource = new VirtualScrollViewTestDataSource { Count = 100 };
+            scrollView.SetDataSource(dataSource);
+            scrollView.ScrollToIndex(20);
+
+            Assert.AreEqual(100, scrollView.ItemCount);
+            Assert.AreEqual(1000f, scrollView.ScrollOffset, 0.001f);
+            Assert.AreEqual(4700f, scrollView.MaxScrollOffset, 0.001f);
+            Assert.AreEqual(1000f, scrollView.GetItemOffset(20), 0.001f);
+            Assert.AreEqual(50f, scrollView.GetItemSize(20), 0.001f);
+            Assert.IsTrue(scrollView.TryGetMaterializedItem(20, out var item));
+            Assert.AreEqual("Test Item 20", item.Transform.name);
+            Assert.IsFalse(scrollView.TryGetMaterializedItem(99, out _));
+        }
+
+        /// <summary>
         /// Verifies inserting data above the viewport preserves the same logical anchor item.
         /// </summary>
         [Test]
