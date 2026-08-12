@@ -6,7 +6,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Stores presentation state owned by one slide animation.

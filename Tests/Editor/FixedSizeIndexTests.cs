@@ -8,7 +8,7 @@
 
 using NUnit.Framework;
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Verifies fixed-size virtual indexing.

@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Stores a visible item's view, index, and pool type.

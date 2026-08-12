@@ -4,7 +4,7 @@
 // Desc: Receives allocation-free completion signals from animation providers.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Receives completion for one uniquely identified animation.

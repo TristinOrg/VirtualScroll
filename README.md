@@ -37,6 +37,8 @@ You can pin a release tag:
 https://github.com/TristinOrg/VirtualScroll.git#v1.1.0
 ```
 
+The current `main` branch uses the `TristinOrg.VirtualScroll` namespace and the `com.tristinorg.virtual-scroll` package identifier. Version `1.1.0` remains available under the former namespace for existing projects. When upgrading from `1.x`, replace `TristinWen.VirtualScroll` with `TristinOrg.VirtualScroll` and update any manifest dependency key to `com.tristinorg.virtual-scroll`.
+
 ## Setup
 
 1. Create a normal uGUI `Scroll View`.
@@ -55,7 +57,7 @@ ScrollView.SetDataSource(dataSource, EVirtualScrollPositionMode.StickToEnd);
 ```
 
 ```csharp
-using TristinWen.VirtualScroll;
+using TristinOrg.VirtualScroll;
 using UnityEngine;
 
 public sealed class MailListItem : MonoBehaviour, IVirtualScrollItem

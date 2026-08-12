@@ -6,7 +6,7 @@
 // Desc: Defines the supported virtual scroll directions.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Defines the main scrolling axis.

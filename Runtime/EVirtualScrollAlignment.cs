@@ -6,7 +6,7 @@
 // Desc: Defines item alignment when scrolling to an index.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Defines where a target item is placed inside the viewport.

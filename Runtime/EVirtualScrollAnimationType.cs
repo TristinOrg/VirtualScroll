@@ -4,7 +4,7 @@
 // Desc: Identifies a virtual-scroll collection animation phase.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Identifies the collection change represented by an item animation.

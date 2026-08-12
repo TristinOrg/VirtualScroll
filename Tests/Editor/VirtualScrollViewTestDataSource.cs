@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Supplies fixed-size runtime items for component-level tests.

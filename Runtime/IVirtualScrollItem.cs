@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Exposes the RectTransform used to present and recycle a virtual scroll item.

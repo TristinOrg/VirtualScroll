@@ -6,7 +6,7 @@
 // Desc: Defines how scrolling position is handled when list data changes.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Defines the scroll-position behavior applied during a data update.

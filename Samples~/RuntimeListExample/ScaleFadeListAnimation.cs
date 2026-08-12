@@ -7,7 +7,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Plays concurrent scale-and-fade collection animations using an allocation-free update loop.

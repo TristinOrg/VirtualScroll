@@ -8,7 +8,7 @@
 
 using System.Collections.Generic;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Maps item indices to main-axis offsets.

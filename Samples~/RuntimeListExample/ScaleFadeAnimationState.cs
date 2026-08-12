@@ -6,7 +6,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Stores presentation state for one provider-owned sample animation.

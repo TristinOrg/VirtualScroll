@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Provides the reusable item contract for a generated test view.

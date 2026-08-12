@@ -9,7 +9,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Verifies masonry lane assignment, visibility, and measured-size updates.

@@ -4,7 +4,7 @@
 // Desc: Defines replaceable collection-change animation presentation.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Owns custom item playback while the scroll view retains cancellation and pooling ownership.

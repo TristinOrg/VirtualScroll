@@ -9,7 +9,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Assigns each variable-size item to the currently shortest lane and supports lane-local visibility lookup.

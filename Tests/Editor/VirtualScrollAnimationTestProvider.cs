@@ -4,7 +4,7 @@
 // Desc: Records virtual-scroll animation callbacks for component tests.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Records animation lifecycle calls without changing item presentation.

@@ -8,4 +8,4 @@
 
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("TristinWen.VirtualScroll.Tests")]
+[assembly: InternalsVisibleTo("TristinOrg.VirtualScroll.Tests")]

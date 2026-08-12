@@ -9,7 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Stores references used while binding a generated sample item.

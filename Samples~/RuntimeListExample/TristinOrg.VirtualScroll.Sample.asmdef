@@ -1,7 +1,8 @@
 {
-  "name": "TristinWen.VirtualScroll",
-  "rootNamespace": "TristinWen.VirtualScroll",
+  "name": "TristinOrg.VirtualScroll.Sample",
+  "rootNamespace": "TristinOrg.VirtualScroll.Sample",
   "references": [
+    "TristinOrg.VirtualScroll",
     "Unity.ugui"
   ],
   "includePlatforms": [],

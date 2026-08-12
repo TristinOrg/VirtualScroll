@@ -9,7 +9,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Maps fixed-size items to offsets using direct arithmetic.

@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Supplies data, sizes, and item instances to a <see cref="VirtualScrollView"/>.

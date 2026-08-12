@@ -1,8 +1,8 @@
 {
-  "name": "TristinWen.VirtualScroll.Tests",
-  "rootNamespace": "TristinWen.VirtualScroll.Tests",
+  "name": "TristinOrg.VirtualScroll.Tests",
+  "rootNamespace": "TristinOrg.VirtualScroll.Tests",
   "references": [
-    "TristinWen.VirtualScroll"
+    "TristinOrg.VirtualScroll"
   ],
   "includePlatforms": [
     "Editor"

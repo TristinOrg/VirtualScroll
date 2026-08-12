@@ -9,7 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Stores the runtime layout values copied from a supported uGUI LayoutGroup.

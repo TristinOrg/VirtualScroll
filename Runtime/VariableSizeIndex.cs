@@ -9,7 +9,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Maps variable-size items to offsets with a Fenwick tree.

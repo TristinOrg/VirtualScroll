@@ -1,6 +1,6 @@
 {
-  "name": "com.tristinwen.virtual-scroll",
-  "version": "1.1.0",
+  "name": "com.tristinorg.virtual-scroll",
+  "version": "2.0.0",
   "displayName": "Virtual Scroll",
   "description": "High-performance virtualized uGUI lists with fixed or variable item sizes.",
   "unity": "2021.3",
@@ -12,8 +12,8 @@
     "recycling"
   ],
   "author": {
-    "name": "TristinWen",
-    "url": "https://github.com/TristinWen"
+    "name": "TristinOrg",
+    "url": "https://github.com/TristinOrg"
   },
   "license": "MIT",
   "repository": {

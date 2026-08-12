@@ -11,7 +11,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Recycles visible uGUI items and resolves their offsets without traversing all data while scrolling.

@@ -11,7 +11,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll.Tests
+namespace TristinOrg.VirtualScroll.Tests
 {
     /// <summary>
     /// Verifies component-level position behavior using runtime-created UI objects.

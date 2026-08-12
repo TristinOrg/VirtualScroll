@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Changed the package identifier from `com.tristinwen.virtual-scroll` to `com.tristinorg.virtual-scroll`.
+- Changed runtime, sample, test, and assembly namespaces from `TristinWen.VirtualScroll` to `TristinOrg.VirtualScroll`.
+- Increased the package version to `2.0.0` because the namespace and package identifier migration is source-breaking.
+
 ## [1.1.0] - 2026-07-29
 
 - Changed variable-size indexing to resolve `GetItemSize` lazily near the viewport instead of querying the entire data set during initialization.

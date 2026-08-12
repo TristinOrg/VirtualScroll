@@ -6,7 +6,7 @@
 
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Describes one provider-owned collection animation without allocating a closure or delegate.

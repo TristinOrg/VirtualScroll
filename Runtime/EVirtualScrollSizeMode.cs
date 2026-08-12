@@ -6,7 +6,7 @@
 // Desc: Defines fixed and variable virtual item sizing modes.
 //---------------------------------------------------------------------------------------
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Defines how item sizes are resolved.

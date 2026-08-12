@@ -9,7 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll
+namespace TristinOrg.VirtualScroll
 {
     /// <summary>
     /// Manages supported content layout components outside the scrolling hot path.

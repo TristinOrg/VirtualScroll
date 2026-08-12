@@ -9,7 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Creates and binds simple text items without requiring a prefab.

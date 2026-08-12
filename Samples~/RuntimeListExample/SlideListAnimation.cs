@@ -7,7 +7,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TristinWen.VirtualScroll.Sample
+namespace TristinOrg.VirtualScroll.Sample
 {
     /// <summary>
     /// Slides insertions from right to left while fading and scaling item presentation.
