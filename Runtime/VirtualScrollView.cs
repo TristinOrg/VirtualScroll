@@ -571,7 +571,23 @@ namespace TristinOrg.VirtualScroll
         /// <returns>Item size, or zero when the index is unavailable.</returns>
         public float GetItemSize(int index)
         {
-            return mSizeIndex is null || index < 0 || index >= mSizeIndex.Count ? 0f : mSizeIndex.GetSize(index);
+            if (mSizeIndex is null || index < 0 || index >= mSizeIndex.Count)
+            {
+                return 0f;
+            }
+
+            CapturePosition(out _, out var anchorIndex, out var anchorDelta);
+            var sizeIndexVersion = mSizeIndex.Version;
+            var size             = mSizeIndex.GetSize(index);
+            if (sizeIndexVersion != mSizeIndex.Version)
+            {
+                UpdateContentSize();
+                ApplyPositionMode(EVirtualScrollPositionMode.KeepAnchor, 0f, anchorIndex, anchorDelta);
+                PositionActiveItems();
+                RefreshVisible(true);
+            }
+
+            return size;
         }
 
         /// <summary>

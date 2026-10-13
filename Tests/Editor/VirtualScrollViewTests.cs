@@ -113,6 +113,42 @@ namespace TristinOrg.VirtualScroll.Tests
         }
 
         /// <summary>
+        /// Verifies querying an unresolved variable item applies its measured size to the layout.
+        /// </summary>
+        [Test]
+        public void QueryingVariableItemSizeUpdatesContentLayout()
+        {
+            var scrollView = CreateScrollView();
+            var itemSizes  = new float[100];
+            for (var index = 0; index < itemSizes.Length; index++)
+            {
+                itemSizes[index] = 50f;
+            }
+
+            itemSizes[8]  = 75f;
+            itemSizes[99] = 100f;
+            var dataSource                   = new VirtualScrollViewTestDataSource { Count = itemSizes.Length, ItemSizes = itemSizes };
+            scrollView.SizeMode              = EVirtualScrollSizeMode.Variable;
+            scrollView.EstimatedMainAxisSize = 50f;
+            scrollView.SetDataSource(dataSource);
+
+            Assert.AreEqual(5000f, scrollView.content.sizeDelta.y, 0.001f);
+            Assert.AreEqual(100f, scrollView.GetItemSize(99), 0.001f);
+
+            Assert.AreEqual(5050f, scrollView.content.sizeDelta.y, 0.001f);
+            Assert.AreEqual(4750f, scrollView.MaxScrollOffset, 0.001f);
+
+            scrollView.ScrollToIndex(10);
+            Assert.AreEqual(500f, scrollView.ScrollOffset, 0.001f);
+
+            Assert.AreEqual(75f, scrollView.GetItemSize(8), 0.001f);
+
+            Assert.AreEqual(525f, scrollView.ScrollOffset, 0.001f);
+            Assert.AreEqual(525f, scrollView.GetItemOffset(10), 0.001f);
+            Assert.AreEqual(5075f, scrollView.content.sizeDelta.y, 0.001f);
+        }
+
+        /// <summary>
         /// Verifies inserting data above the viewport preserves the same logical anchor item.
         /// </summary>
         [Test]

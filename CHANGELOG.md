@@ -6,6 +6,7 @@
 - Changed runtime, sample, test, and assembly namespaces from `TristinWen.VirtualScroll` to `TristinOrg.VirtualScroll`.
 - Increased the package version to `2.0.0` because the namespace and package identifier migration is source-breaking.
 - Added allocation-free layout and materialized-item queries for extension packages.
+- Fixed variable-size layout becoming stale after querying an unresolved item size.
 
 ## [1.1.0] - 2026-07-29
 

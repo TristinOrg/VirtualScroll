@@ -21,6 +21,11 @@ namespace TristinOrg.VirtualScroll.Tests
         public int Count { get; set; }
 
         /// <summary>
+        /// Gets or sets optional per-index item sizes for variable-size tests.
+        /// </summary>
+        public float[] ItemSizes { get; set; }
+
+        /// <summary>
         /// Gets the number of main-axis size requests.
         /// </summary>
         public int SizeRequestCount { get; private set; }
@@ -43,7 +48,7 @@ namespace TristinOrg.VirtualScroll.Tests
         public float GetItemSize(int index)
         {
             SizeRequestCount++;
-            return 50f;
+            return ItemSizes != null && index >= 0 && index < ItemSizes.Length ? ItemSizes[index] : 50f;
         }
 
         /// <summary>
